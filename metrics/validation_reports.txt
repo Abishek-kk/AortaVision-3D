@@ -1,0 +1,75 @@
+AortaVision 3D final rebuild validation report
+
+The final test set was not used for model selection, hyperparameter tuning, feature selection, or threshold optimization.
+
+Dataset rows: 378
+Columns: 59
+Final raw features: 54
+Transformed features: 77
+Removed features: [{'feature': 'Exertional CP', 'reason': 'constant feature in current training data', 'decision': 'removed from model inputs'}]
+Class distributions: {"CAD": {"negative_count": 87, "positive_count": 291}, "LAD": {"negative_count": 140, "positive_count": 238}, "LCX": {"negative_count": 189, "positive_count": 189}, "RCA": {"negative_count": 189, "positive_count": 189}}
+
+Split: train=302, test=76, random_state=42
+deterministic greedy multilabel-balanced holdout preserving each target as closely as possible; random_state=42
+
+FINAL TEST METRICS
+Target  Accuracy  Precision   Recall       F1  ROC_AUC  Threshold
+   CAD  0.815789   0.779661 0.978723 0.867925 0.948643       0.35
+   LAD  0.776316   0.750000 0.957447 0.841121 0.906090       0.30
+   LCX  0.723684   0.673469 0.868421 0.758621 0.831717       0.25
+   RCA  0.776316   0.705882 0.947368 0.808989 0.877424       0.35
+
+OVERFITTING
+Target  Train_ROC_AUC  CV_ROC_AUC  Test_ROC_AUC  Train_CV_AUC_Gap  Train_F1    CV_F1  Test_F1
+   CAD       0.991379    0.929921      0.948643          0.061458  0.971774 0.941884 0.867925
+   LAD       0.906986    0.801076      0.906090          0.105909  0.851259 0.832215 0.841121
+   LCX       0.992149    0.821190      0.831717          0.170960  0.850704 0.753247 0.758621
+   RCA       0.924740    0.786444      0.877424          0.138296  0.804348 0.741514 0.808989
+
+SELECTED MODELS
+CAD: XGBoost smote_regularized threshold=0.35
+LAD: XGBoost very_regularized threshold=0.3
+LCX: XGBoost regularized threshold=0.25
+RCA: XGBoost very_regularized threshold=0.35
+
+CLASSIFICATION REPORTS
+
+===== CAD =====
+              precision    recall  f1-score   support
+
+    Negative     0.9412    0.5517    0.6957        29
+    Positive     0.7797    0.9787    0.8679        47
+
+    accuracy                         0.8158        76
+   macro avg     0.8604    0.7652    0.7818        76
+weighted avg     0.8413    0.8158    0.8022        76
+
+===== LAD =====
+              precision    recall  f1-score   support
+
+    Negative     0.8750    0.4828    0.6222        29
+    Positive     0.7500    0.9574    0.8411        47
+
+    accuracy                         0.7763        76
+   macro avg     0.8125    0.7201    0.7317        76
+weighted avg     0.7977    0.7763    0.7576        76
+
+===== LCX =====
+              precision    recall  f1-score   support
+
+    Negative     0.8148    0.5789    0.6769        38
+    Positive     0.6735    0.8684    0.7586        38
+
+    accuracy                         0.7237        76
+   macro avg     0.7441    0.7237    0.7178        76
+weighted avg     0.7441    0.7237    0.7178        76
+
+===== RCA =====
+              precision    recall  f1-score   support
+
+    Negative     0.9200    0.6053    0.7302        38
+    Positive     0.7059    0.9474    0.8090        38
+
+    accuracy                         0.7763        76
+   macro avg     0.8129    0.7763    0.7696        76
+weighted avg     0.8129    0.7763    0.7696        76

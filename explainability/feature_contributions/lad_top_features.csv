@@ -1,0 +1,11 @@
+feature,value,contribution
+num__Typical Chest Pain,0.0,-1.5220941
+num__Age,64.0,0.64252925
+num__BP,100.0,-0.62675726
+num__WBC,11300.0,0.5823305
+num__EF-TTE,50.0,0.53309906
+num__ESR,67.0,0.4521414
+num__PR,80.0,0.43789345
+num__Region RWMA,0.0,-0.35946387
+num__Tinversion,1.0,0.327685
+num__Neut,70.0,0.32703948

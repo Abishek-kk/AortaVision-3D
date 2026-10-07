@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Human Heart - 3D Anatomical Model</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #f1efec; overflow: hidden; font-family: 'Inter', system-ui, sans-serif; color: #334155; }
+    canvas { display: block; }
+    #loading {
+      position: fixed; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: #f1efec; z-index: 100;
+      transition: opacity 0.8s ease;
+    }
+    #loading.hidden { opacity: 0; pointer-events: none; }
+    .loader-heart {
+      width: 56px; height: 56px;
+      background: #c62828;
+      border-radius: 50% 50% 0 0;
+      position: relative;
+      transform: rotate(-45deg);
+      animation: heartbeat 0.9s ease-in-out infinite;
+    }
+    .loader-heart::before, .loader-heart::after {
+      content: '';
+      position: absolute;
+      width: 56px; height: 56px;
+      border-radius: 50%;
+      background: #c62828;
+    }
+    .loader-heart::before { left: 50%; top: 0; transform: translateX(-50%); }
+    .loader-heart::after  { left: 0;  top: 50%; transform: translateY(-50%); }
+    @keyframes heartbeat {
+      0%, 100% { transform: rotate(-45deg) scale(1); }
+      14%       { transform: rotate(-45deg) scale(1.28); }
+      28%       { transform: rotate(-45deg) scale(1); }
+      42%       { transform: rotate(-45deg) scale(1.16); }
+      70%       { transform: rotate(-45deg) scale(1); }
+    }
+    #loading p { margin-top: 54px; font-size: 13px; font-weight: 400; color: #64748b; letter-spacing: 0.1em; text-transform: uppercase; }
+    #ui { position: fixed; inset: 0; pointer-events: none; }
+    #title-card { position: absolute; top: 28px; left: 32px; }
+    #title-card h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; color: #1e293b; }
+    #title-card p { font-size: 12px; font-weight: 400; color: #64748b; margin-top: 4px; letter-spacing: 0.04em; }
+    #stats { position: absolute; top: 28px; right: 32px; background: rgba(255,255,255,0.82); border: 1px solid rgba(100,116,139,0.2); border-radius: 8px; padding: 10px 14px; font-size: 11px; color: #64748b; letter-spacing: 0.05em; backdrop-filter: blur(8px); }
+    #stats span { color: #1e293b; font-weight: 600; }
+    #legend { position: absolute; bottom: 60px; right: 32px; background: rgba(255,255,255,0.86); border: 1px solid rgba(100,116,139,0.2); border-radius: 10px; padding: 14px 16px; backdrop-filter: blur(8px); display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+    .legend-item { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #475569; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    #view-buttons { position: absolute; bottom: 60px; left: 32px; display: flex; flex-direction: column; gap: 8px; pointer-events: auto; }
+    .view-btn { background: rgba(255,255,255,0.82); border: 1px solid rgba(100,116,139,0.22); border-radius: 8px; padding: 8px 14px; font-size: 11px; font-weight: 600; color: #475569; letter-spacing: 0.06em; text-transform: uppercase; cursor: pointer; backdrop-filter: blur(8px); transition: all 0.2s ease; font-family: 'Inter', sans-serif; }
+    .view-btn:hover { background: #dbeafe; color: #1d4ed8; border-color: #93c5fd; }
+    .view-btn.active { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+    #controls-hint { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); display: flex; gap: 24px; font-size: 11px; color: #64748b; letter-spacing: 0.06em; text-transform: uppercase; }
+  </style>
+</head>
+<body>
+<div id="loading"><div class="loader-heart"></div><p>Loading Heart Model</p></div>
+<div id="ui">
+  <div id="title-card"><h1>Human Heart</h1><p>Adult &bull; Anterior View &bull; 3D Anatomical Model</p></div>
+  <div id="stats">Triangles: <span id="tri-count">-</span></div>
+  <div id="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#b3463b"></div>Coronary arteries (LAD/LCX/RCA)</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#a63d35"></div>Aorta &amp; great arteries</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#735b82"></div>Veins &amp; pulmonary trunk</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#c9a87a"></div>Epicardial fat</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#8b3a3a"></div>Myocardium</div>
+  </div>
+  <div id="view-buttons">
+    <button class="view-btn active" data-view="anterior">Anterior</button>
+    <button class="view-btn" data-view="posterior">Posterior</button>
+    <button class="view-btn" data-view="lateral-r">Right Lateral</button>
+    <button class="view-btn" data-view="lateral-l">Left Lateral</button>
+    <button class="view-btn" data-view="superior">Superior</button>
+    <button class="view-btn" data-view="inferior">Inferior</button>
+  </div>
+  <div id="controls-hint"><span>Drag to rotate</span><span>Scroll to zoom</span><span>Right-drag to pan</span></div>
+</div>
+<script type="importmap">{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/" } }</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0xf1efec);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.90;
+renderer.shadowMap.enabled = false;
+document.body.appendChild(renderer.domElement);
+
+const pmrem = new THREE.PMREMGenerator(renderer);
+pmrem.compileEquirectangularShader();
+scene.environment = pmrem.fromScene(new RoomEnvironment()).texture;
+
+const camera = new THREE.PerspectiveCamera(38, innerWidth/innerHeight, 0.01, 200);
+camera.position.set(0, 0.6, 6.8);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = 0.06;
+controls.target.set(0, 0, 0); controls.minDistance = 1.5; controls.maxDistance = 14;
+
+// Neutral key for shape definition - pure white, low intensity
+const key = new THREE.DirectionalLight(0xffffff, 0.8);
+key.position.set(2, 3, 5);
+scene.add(key);
+
+// Very subtle cool fill from left
+const fill = new THREE.DirectionalLight(0xc8d8f0, 0.25);
+fill.position.set(-5, 1, -3); scene.add(fill);
+
+const backFill = new THREE.DirectionalLight(0xffddd0, 0.32);
+backFill.position.set(0, 2, -5); scene.add(backFill);
+
+// Subtle warm rim from behind-below
+const rim = new THREE.DirectionalLight(0xffe0cc, 0.20);
+rim.position.set(0, -3, -5); scene.add(rim);
+
+// Neutral ambient (most important – drives colour accuracy)
+scene.add(new THREE.AmbientLight(0xffffff, 0.40));
+
+const loader = new GLTFLoader();
+loader.load('./models/heart.glb?v=19', (gltf) => {
+  const model = gltf.scene;
+  const box = new THREE.Box3().setFromObject(model);
+  model.position.sub(box.getCenter(new THREE.Vector3()));
+  model.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
+  scene.add(model);
+
+  let tris = 0;
+  model.traverse(o => {
+    if (o.isMesh && o.geometry) tris += (o.geometry.index ? o.geometry.index.count : o.geometry.attributes.position.count) / 3;
+  });
+  document.getElementById('tri-count').textContent = Math.round(tris).toLocaleString();
+
+  const loading = document.getElementById('loading');
+  loading.classList.add('hidden');
+  setTimeout(() => loading.style.display = 'none', 900);
+}, undefined, err => {
+  console.error(err);
+  document.getElementById('loading').innerHTML = '<p style="color:#ef4444;font-family:sans-serif">Failed to load model</p>';
+});
+
+const PRESETS = {
+  anterior:   [0, 0.6, 6.8],
+  posterior:  [0, 0.6, -6.8],
+  'lateral-r':[6.8, 0.6, 0],
+  'lateral-l':[-6.8, 0.6, 0],
+  superior:   [0, 7.5, 0.5],
+  inferior:   [0, -7.0, 0.5],
+};
+
+function tweenCam(view) {
+  const ep = new THREE.Vector3(...PRESETS[view]);
+  const sp = camera.position.clone();
+  const dur = 750; const t0 = performance.now();
+  (function step(t) {
+    const k = Math.min((t - t0) / dur, 1);
+    const e = k < 0.5 ? 2*k*k : -1 + (4 - 2*k)*k;
+    camera.position.lerpVectors(sp, ep, e);
+    controls.update();
+    if (k < 1) requestAnimationFrame(step);
+  })(performance.now());
+}
+
+document.querySelectorAll('.view-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelector('#title-card p').textContent =
+      `Adult • ${btn.textContent.trim()} View • 3D Anatomical Model`;
+    tweenCam(btn.dataset.view);
+  });
+});
+
+addEventListener('resize', () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+(function tick() { requestAnimationFrame(tick); controls.update(); renderer.render(scene, camera); })();
+</script>
+</body>
+</html>

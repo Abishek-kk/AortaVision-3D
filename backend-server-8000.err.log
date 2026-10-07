@@ -1,0 +1,9 @@
+INFO:     Started server process [25336]
+INFO:     Waiting for application startup.
+INFO:aortavision.backend:Loaded model: CAD
+INFO:aortavision.backend:Loaded model: LAD
+INFO:aortavision.backend:Loaded model: LCX
+INFO:aortavision.backend:Loaded model: RCA
+INFO:aortavision.backend:Loaded preprocessing artifact from D:\aortavision-3d\model\serialized\preprocessor.joblib
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)

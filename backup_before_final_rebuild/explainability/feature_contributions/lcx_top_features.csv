@@ -1,0 +1,11 @@
+feature,value,contribution
+num__Typical Chest Pain,0.0,-0.7444575
+num__HDL,23.0,-0.65632224
+num__Age,55.0,-0.6469131
+num__CR,0.9,-0.60792714
+num__LDL,40.0,-0.5696134
+num__PLT,377.0,-0.5642752
+num__Length,152.0,-0.48271272
+num__ESR,3.0,-0.40221202
+num__FBS,86.0,-0.3072666
+num__EF-TTE,40.0,0.27495068

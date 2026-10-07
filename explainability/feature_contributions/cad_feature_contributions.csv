@@ -1,0 +1,78 @@
+feature,mean_abs_shap
+num__Typical Chest Pain,1.0836172
+num__Age,0.5944279
+num__EF-TTE,0.5579906
+cat__Atypical_N,0.43288472
+num__HTN,0.36216354
+num__DM,0.31158203
+num__ESR,0.29577997
+num__TG,0.2674678
+num__Region RWMA,0.2638599
+num__Tinversion,0.24255078
+cat__Atypical_Y,0.13436963
+cat__DLP_N,0.13036563
+num__BMI,0.12260714
+cat__VHD_N,0.08867972
+num__Neut,0.06830378
+num__FBS,0.0631127
+cat__Systolic Murmur_N,0.059515677
+num__HB,0.05443736
+cat__Nonanginal_N,0.05281045
+cat__Dyspnea_N,0.052227806
+num__PR,0.03796978
+num__FH,0.035206627
+num__BP,0.034147363
+num__PLT,0.033976186
+num__Lymph,0.032966223
+cat__VHD_Mild,0.031862337
+num__LDL,0.031685084
+num__St Depression,0.031119516
+num__WBC,0.030396136
+num__Length,0.029282048
+num__K,0.02903778
+num__Function Class,0.021284973
+cat__DLP_Y,0.015896812
+num__HDL,0.014895742
+cat__Systolic Murmur_Y,0.009531989
+num__CR,0.008819998
+cat__Dyspnea_Y,0.008623987
+num__BUN,0.008461714
+num__Na,0.006971793
+num__Current Smoker,0.0061957575
+cat__Obesity_N,0.0061863963
+num__Weight,0.0060813813
+cat__Sex_Female,0.0042606555
+cat__VHD_Moderate,0.0030826032
+cat__LVH_N,0.0020860846
+num__Edema,0.0
+num__EX-Smoker,0.0
+cat__Airway disease_N,0.0
+cat__Airway disease_Y,0.0
+cat__Thyroid Disease_N,0.0
+cat__CRF_Y,0.0
+cat__CRF_N,0.0
+cat__Obesity_Y,0.0
+cat__Sex_Male,0.0
+num__St Elevation,0.0
+num__Q Wave,0.0
+cat__CVA_Y,0.0
+cat__CVA_N,0.0
+cat__Weak Peripheral Pulse_Y,0.0
+cat__Lung rales_N,0.0
+cat__CHF_N,0.0
+cat__Diastolic Murmur_Y,0.0
+cat__Diastolic Murmur_N,0.0
+cat__Lung rales_Y,0.0
+cat__Thyroid Disease_Y,0.0
+cat__CHF_Y,0.0
+cat__Weak Peripheral Pulse_N,0.0
+cat__LowTH Ang_N,0.0
+cat__Nonanginal_Y,0.0
+cat__Poor R Progression_N,0.0
+cat__LVH_Y,0.0
+cat__LowTH Ang_Y,0.0
+cat__Poor R Progression_Y,0.0
+cat__BBB_RBBB,0.0
+cat__BBB_N,0.0
+cat__BBB_LBBB,0.0
+cat__VHD_Severe,0.0
