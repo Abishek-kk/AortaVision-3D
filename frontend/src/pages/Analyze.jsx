@@ -34,7 +34,7 @@ import GlowButton from "../components/GlowButton.jsx";
 import GlowCard from "../components/GlowCard.jsx";
 import HeartGlow from "../components/HeartGlow.jsx";
 import { usePatientData } from "../context/PatientDataContext.jsx";
-import { DEFAULT_RESULT } from "../data/demoPrediction.js";
+import { SAMPLE_PATIENT } from "../data/samplePatient.js";
 import { predictRisk } from "../services/predict.js";
 import { getRiskColor, getRiskLevel } from "../utils/risk.js";
 
@@ -737,8 +737,19 @@ function ShapTooltip({ active, payload, label }) {
 
 function ShapChart({ shap }) {
   const data = shap
-    .filter((item) => item.feature !== "Smoking history")
     .slice(0, 8);
+  const axisLimit = Math.max(
+    0.01,
+    ...data.map((item) => Math.abs(Number(item.value) || 0)),
+  ) * 1.1;
+
+  if (data.length === 0) {
+    return (
+      <p className="flex h-[220px] items-center justify-center text-center text-sm text-slate-300 sm:h-[250px] min-[960px]:h-[300px]">
+        No feature-contribution explanations are available for this prediction.
+      </p>
+    );
+  }
 
   return (
     <div className="h-[220px] w-full sm:h-[250px] min-[960px]:h-[300px]">
@@ -751,7 +762,7 @@ function ShapChart({ shap }) {
           <CartesianGrid stroke="#ffffff1c" strokeDasharray="3 3" horizontal={false} />
           <XAxis
             axisLine={{ stroke: "#64748b" }}
-            domain={[-20, 20]}
+            domain={[-axisLimit, axisLimit]}
             tick={{ fill: "#cbd5e1", fontSize: 11 }}
             tickLine={{ stroke: "#64748b" }}
             type="number"
@@ -838,32 +849,24 @@ export default function Analyze() {
   const [sampleError, setSampleError] = useState("");
 
   const result = predictionResult;
-  const vessels = result?.vessels ?? DEFAULT_RESULT.vessels;
+  const vessels = result?.vessels ?? {};
   const activeVessel = pinnedVessel ?? hoveredVessel;
 
   async function loadSample() {
     setIsLoadingSample(true);
     setSampleError("");
-    const samplePatient = {
-      patientId: "HC-2026-001",
-      age: 62,
-      bloodPressure: 148,
-      LDL: 172,
-      heartRate: 82,
-      smokingHistory: "Former smoker",
-    };
     try {
-      const sampleJson = JSON.stringify(samplePatient);
+      const sampleJson = JSON.stringify(SAMPLE_PATIENT);
       setUploadedFiles([
         {
           name: "sample-patient.json",
           size: new Blob([sampleJson]).size,
           type: "application/json",
-          parsedData: samplePatient,
+          parsedData: SAMPLE_PATIENT,
           isSample: true,
         },
       ]);
-      const sampleResult = await predictRisk(samplePatient);
+      const sampleResult = await predictRisk({ features: SAMPLE_PATIENT });
       setPredictionResult(sampleResult);
     } catch (error) {
       setSampleError(`Unable to load sample data: ${error.message}`);
@@ -887,7 +890,7 @@ export default function Analyze() {
 
   const cadProbability = Number(result.cad?.probability ?? 0);
   const probabilityPercent = Math.round(cadProbability * 100);
-  const shap = Array.isArray(result.shap) ? result.shap : DEFAULT_RESULT.shap;
+  const shap = Array.isArray(result.shap) ? result.shap : [];
 
   return (
     <section className="mx-auto flex w-full max-w-[1700px] flex-1 flex-col px-4 py-2 sm:px-6 sm:py-3 lg:px-8">

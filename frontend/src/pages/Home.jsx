@@ -6,18 +6,11 @@ import GlowButton from "../components/GlowButton.jsx";
 import GlowCard from "../components/GlowCard.jsx";
 import HeartGlow from "../components/HeartGlow.jsx";
 import { usePatientData } from "../context/PatientDataContext.jsx";
+import { SAMPLE_PATIENT } from "../data/samplePatient.js";
 import { predictRisk } from "../services/predict.js";
 
-const ACCEPTED_EXTENSIONS = new Set(["pdf", "csv", "json"]);
+const ACCEPTED_EXTENSIONS = new Set(["csv", "json"]);
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
-const SAMPLE_PATIENT = {
-  patientId: "HC-2026-001",
-  age: 62,
-  bloodPressure: 148,
-  LDL: 172,
-  heartRate: 82,
-  smokingHistory: "Former smoker",
-};
 
 function fileExtension(name) {
   return name.split(".").pop()?.toLowerCase() ?? "";
@@ -31,7 +24,6 @@ function formatFileSize(size) {
 
 function FileTypeIcon({ extension, className = "h-6 w-6" }) {
   const iconColor = {
-    pdf: "text-red-600",
     csv: "text-green-600",
     json: "text-navy",
   }[extension] ?? "text-slate-500";
@@ -40,10 +32,6 @@ function FileTypeIcon({ extension, className = "h-6 w-6" }) {
 }
 
 function parseUpload(file, extension) {
-  if (extension === "pdf") {
-    return Promise.resolve({ name: file.name, size: file.size, type: file.type, parsedData: file });
-  }
-
   if (extension === "json") {
     return file.text().then((contents) => {
       let parsedData;
@@ -131,10 +119,15 @@ export default function Home() {
 
   async function processFiles(fileList) {
     setErrors([]);
-    for (const file of Array.from(fileList)) {
+    const selectedFiles = Array.from(fileList);
+    if (selectedFiles.length > 1) {
+      addError("Select one CSV or JSON file containing a single patient record.");
+      return;
+    }
+    for (const file of selectedFiles) {
       const extension = fileExtension(file.name);
       if (!ACCEPTED_EXTENSIONS.has(extension)) {
-        addError(`${file.name}: unsupported file type. Choose PDF, CSV, or JSON.`);
+        addError(`${file.name}: unsupported file type. Choose CSV or JSON.`);
         continue;
       }
       if (file.size > MAX_FILE_SIZE) {
@@ -152,7 +145,7 @@ export default function Home() {
 
       try {
         const uploadedFile = await parseUpload(file, extension);
-        updateFiles([...filesRef.current, uploadedFile]);
+        updateFiles([uploadedFile]);
       } catch (error) {
         addError(`${file.name}: ${error.message}`);
       }
@@ -185,10 +178,7 @@ export default function Home() {
       parsedData: SAMPLE_PATIENT,
       isSample: true,
     };
-    const existingSample = filesRef.current.some(
-      (file) => file.name === sampleFile.name && file.size === sampleFile.size,
-    );
-    if (!existingSample) updateFiles([...filesRef.current, sampleFile]);
+    updateFiles([sampleFile]);
     setErrors([]);
   }
 
@@ -230,7 +220,7 @@ export default function Home() {
         >
           <div className="bg-slate-50 p-3 sm:p-4 md:p-5">
             <div
-              aria-label="Upload PDF, CSV, or JSON patient files"
+              aria-label="Upload a CSV or JSON patient file"
               className={`flex min-h-48 cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-4 py-4 text-center transition-colors duration-200 sm:min-h-52 ${
                 isDragging
                   ? "border-cyan bg-lightBlue"
@@ -253,7 +243,7 @@ export default function Home() {
               tabIndex={0}
             >
               <div className="mb-2 flex items-center justify-center gap-7 sm:gap-10">
-                {["pdf", "csv", "json"].map((extension) => (
+                {["csv", "json"].map((extension) => (
                   <div
                     key={extension}
                     className="flex flex-col items-center gap-1 text-xs font-extrabold uppercase tracking-wider text-navy"
@@ -277,14 +267,13 @@ export default function Home() {
                 Drag &amp; drop files or click to upload
               </p>
               <p className="mt-1 text-sm text-slate-600">
-                PDF, CSV, or JSON · up to 10 MB each
+                CSV or JSON · one patient record · up to 10 MB
               </p>
               <input
                 ref={inputRef}
-                accept=".pdf,.csv,.json,application/pdf,text/csv,application/json"
+                accept=".csv,.json,text/csv,application/json"
                 aria-label="Choose patient report files"
                 className="sr-only"
-                multiple
                 onClick={(event) => event.stopPropagation()}
                 onChange={(event) => {
                   void processFiles(event.target.files);

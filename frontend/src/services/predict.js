@@ -1,90 +1,117 @@
-import { DEFAULT_RESULT, DEFAULT_SHAP } from "../data/demoPrediction.js";
+const API_BASE_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000")
+  .trim()
+  .replace(/\/+$/, "");
 
-function normalizeKey(key) {
-  return String(key).toLowerCase().replace(/[^a-z0-9]/g, "");
+const TARGETS = ["CAD", "LAD", "LCX", "RCA"];
+
+function patientFeatures(patientData) {
+  if (patientData?.features && typeof patientData.features === "object") {
+    return patientData.features;
+  }
+
+  const uploadedFiles = patientData?.uploadedFiles;
+  if (Array.isArray(uploadedFiles)) {
+    if (uploadedFiles.length !== 1) {
+      throw new Error("Upload exactly one patient JSON or CSV file per analysis.");
+    }
+
+    let data = uploadedFiles[0]?.parsedData;
+    if (Array.isArray(data)) {
+      if (data.length !== 1) {
+        throw new Error("The CSV must contain exactly one patient row.");
+      }
+      [data] = data;
+    }
+    if (data?.features && typeof data.features === "object") {
+      data = data.features;
+    }
+    if (!data || typeof data !== "object" || Array.isArray(data)) {
+      throw new Error(
+        "The uploaded file must contain a JSON object or a CSV row of patient features.",
+      );
+    }
+    return data;
+  }
+
+  if (patientData && typeof patientData === "object") return patientData;
+  throw new Error("Patient features were not found in the submitted data.");
 }
 
-function findNumericValue(value, aliases) {
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      const found = findNumericValue(item, aliases);
-      if (found !== undefined) return found;
-    }
-    return undefined;
+async function responseError(response) {
+  let payload;
+  try {
+    payload = await response.json();
+  } catch {
+    return `Backend returned HTTP ${response.status}.`;
   }
-
-  if (!value || typeof value !== "object") return undefined;
-
-  const aliasSet = new Set(aliases.map(normalizeKey));
-  for (const [key, item] of Object.entries(value)) {
-    if (aliasSet.has(normalizeKey(key))) {
-      const numericValue = Number(item);
-      if (Number.isFinite(numericValue)) return numericValue;
-    }
+  const detail = payload?.detail;
+  if (typeof detail === "string") return detail;
+  if (detail && typeof detail === "object") {
+    return detail.message || JSON.stringify(detail);
   }
-
-  for (const item of Object.values(value)) {
-    const found = findNumericValue(item, aliases);
-    if (found !== undefined) return found;
-  }
-  return undefined;
-}
-
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
+  return payload?.message || `Backend returned HTTP ${response.status}.`;
 }
 
 export async function predictRisk(patientData) {
-  await new Promise((resolve) => window.setTimeout(resolve, 1500));
+  const features = patientFeatures(patientData);
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/predict`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ features }),
+    });
+  } catch (error) {
+    throw new Error(
+      `Cannot reach the prediction backend at ${API_BASE_URL}. Start the backend and check VITE_API_URL. (${error.message})`,
+    );
+  }
 
-  const source = patientData?.uploadedFiles ?? patientData ?? {};
-  const age = findNumericValue(source, ["age", "patient_age"]);
-  const bloodPressure = findNumericValue(source, [
-    "bp",
-    "blood pressure",
-    "systolic blood pressure",
-    "systolic_bp",
-  ]);
-  const ldl = findNumericValue(source, ["ldl", "ldl cholesterol"]);
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
 
-  const ageContribution =
-    age === undefined ? 21 : clamp(Math.round((age - 30) * 0.55), 0, 35);
-  const bloodPressureContribution =
-    bloodPressure === undefined
-      ? 12
-      : clamp(Math.round((bloodPressure - 90) * 0.18), 0, 25);
-  const ldlContribution =
-    ldl === undefined ? 7 : clamp(Math.round((ldl - 70) * 0.08), 0, 20);
+  const payload = await response.json();
+  if (payload?.success !== true || !payload.predictions) {
+    throw new Error("The backend returned an invalid prediction response.");
+  }
 
-  const probability = clamp(
-    DEFAULT_RESULT.cad.probability +
-      (ageContribution + bloodPressureContribution + ldlContribution - 40) /
-        100,
-    0.05,
-    0.95,
+  const missingTargets = TARGETS.filter(
+    (target) => !payload.predictions[target],
   );
-  const vesselAdjustment = clamp(
-    Math.round((probability - DEFAULT_RESULT.cad.probability) * 45),
-    -20,
-    20,
-  );
+  if (missingTargets.length > 0) {
+    throw new Error(
+      `The backend response is missing predictions for: ${missingTargets.join(", ")}.`,
+    );
+  }
 
-  // Replace with real XGBoost/SHAP API call here.
+  const cadPrediction = payload.predictions.CAD;
+  const shap = (payload.explanations?.CAD ?? []).map((item) => ({
+    feature: item.feature,
+    value: Number(item.contribution),
+    direction: item.direction,
+  }));
+  const topFactors = shap.slice(0, 2).map((item) => item.feature);
+
   return {
-    cad: { present: probability >= 0.5, probability },
-    vessels: {
-      LAD: clamp(DEFAULT_RESULT.vessels.LAD + vesselAdjustment, 0, 100),
-      LCX: clamp(DEFAULT_RESULT.vessels.LCX + vesselAdjustment, 0, 100),
-      RCA: clamp(DEFAULT_RESULT.vessels.RCA + vesselAdjustment, 0, 100),
+    cad: {
+      present: Number(cadPrediction.prediction) === 1,
+      probability: Number(cadPrediction.probability),
+      riskLevel: cadPrediction.risk_level,
+      threshold: Number(cadPrediction.threshold),
     },
-    shap: DEFAULT_SHAP.map((item) => {
-      if (item.feature === "Age") return { ...item, value: ageContribution };
-      if (item.feature === "Blood Pressure") {
-        return { ...item, value: bloodPressureContribution };
-      }
-      if (item.feature === "LDL") return { ...item, value: ldlContribution };
-      return { ...item };
-    }),
-    summary: "Age and Elevated Cholesterol are top risk contributors",
+    vessels: Object.fromEntries(
+      ["LAD", "LCX", "RCA"].map((target) => [
+        target,
+        Number(payload.predictions[target].probability) * 100,
+      ]),
+    ),
+    shap,
+    summary: topFactors.length
+      ? `Top CAD risk contributors: ${topFactors.join(" and ")}.`
+      : "The backend did not return feature-contribution explanations.",
+    predictions: payload.predictions,
+    explanations: payload.explanations ?? {},
+    disclaimer: payload.disclaimer ?? "",
   };
 }

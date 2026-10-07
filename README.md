@@ -11,33 +11,32 @@ CardioVision 3D is a clinical decision support prototype that combines multi-tar
 ```
  +-----------------------------------------------------------------------------------+
  |                               CardioVision 3D Frontend                             |
- |                               (React 18 + Vite + TS)                              |
+ |                              (React 18 + Vite + JSX)                              |
  +----------------------------------------+------------------------------------------+
                                           |
                 +-------------------------+-------------------------+
                 |                                                   |
       +---------v----------+                               +--------v---------+
-      |  PatientInputForm  |                               | 3D Scene Canvas  |
-      | (54 features/Z-Sani|                               | (Three.js / R3F) |
+      | CSV/JSON Patient   |                               | 3D Scene Canvas  |
+      | Upload / Sample    |                               | (Three.js / R3F) |
       +---------+----------+                               +--------+---------+
                 |                                                   |
                 +-------------------------+-------------------------+
                                           |
                                  +--------v--------+
-                                 |  Zustand Store  |
+                                 | Patient Data    |
+                                 | Context         |
                                  +--------+--------+
                                           |
-                        +-----------------+-----------------+
-                        |                                   |
-              +---------v----------+              +---------v----------+
-              |   Axios API Layer  |              |    Mock Engine     |
-              | (adapter/client.ts)|              |   (demoMode=true)  |
-              +---------+----------+              +--------------------+
-                        |
-              +---------v----------+
-              |   FastAPI Backend  |
-              | (http://localhost) |
-              +--------------------+
+                                 +--------v--------+
+                                 | Fetch API       |
+                                 | POST /predict   |
+                                 +--------+--------+
+                                          |
+                                 +--------v--------+
+                                 | FastAPI Backend |
+                                 | port 8000       |
+                                 +-----------------+
 ```
 
 ---
@@ -82,15 +81,19 @@ Open `http://localhost:5173` in your browser.
 
 ## Environment Variables
 
-Copy `.env.example` to `.env` inside `frontend/`:
+Copy [`frontend/.env.example`](./frontend/.env.example) to `frontend/.env`:
 
 ```env
 VITE_API_URL=http://localhost:8000
-VITE_USE_MOCK=false
 ```
 
 - `VITE_API_URL`: Base URL of the FastAPI backend service.
-- `VITE_USE_MOCK`: Set to `true` to run the frontend in offline demo mode without calling the backend.
+
+The frontend sends one patient record to `POST /predict`. Upload a CSV containing
+one data row with the exact raw feature names, or a JSON object containing those
+features (either directly or under a `features` property). PDF extraction is not
+implemented. The “Use sample patient data” option submits a complete synthetic
+record through the same live backend request.
 
 ---
 

@@ -9,6 +9,7 @@ This document details the exact contract between the ML FastAPI backend and the 
 - **Base URL**: `http://localhost:8000` (configurable via `VITE_API_URL` env variable)
 - **Framework**: FastAPI (Python 3.10+) running with Uvicorn.
 - **CORS Configuration**: Enabled via `CORSMiddleware` in `backend/main.py` allowing `http://localhost:5173` (or origins specified in `FRONTEND_ORIGIN`).
+- **Frontend upload shape**: One CSV data row or a JSON feature object; PDF extraction and multi-record batch prediction are not supported.
 
 ### Routes
 | Route | Method | Description |

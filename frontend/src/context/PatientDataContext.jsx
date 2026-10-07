@@ -13,7 +13,9 @@ function readStoredData() {
       uploadedFiles: Array.isArray(parsed.uploadedFiles)
         ? parsed.uploadedFiles
         : [],
-      predictionResult: parsed.predictionResult ?? null,
+      predictionResult: parsed.predictionResult?.predictions
+        ? parsed.predictionResult
+        : null,
     };
   } catch (error) {
     console.warn("Unable to restore patient data from session storage.", error);
