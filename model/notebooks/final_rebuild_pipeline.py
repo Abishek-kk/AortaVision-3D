@@ -77,6 +77,9 @@ TARGETS = ["CAD", "LAD", "LCX", "RCA"]
 LEAKAGE_COLUMNS = ["CAD", "LAD", "LCX", "RCA", "Cath"]
 METRIC_NAMES = ["Accuracy", "Precision", "Recall", "F1", "ROC_AUC"]
 THRESHOLDS = [round(x, 2) for x in np.arange(0.20, 0.701, 0.05)]
+THRESHOLD_OBJECTIVE = "maximize F1"
+THRESHOLD_TIE_BREAKERS = ["F1", "Recall", "Precision", "Accuracy"]
+THRESHOLD_RECALL_FLOOR: float | None = None
 
 OLD_METRICS = {
     "CAD": {"Accuracy": 0.9342105263157895, "Precision": 0.9545454545454546, "Recall": 0.9692307692307692, "F1": 0.9618320610687023, "ROC_AUC": 0.9230769230769231},
@@ -179,7 +182,7 @@ def choose_threshold(y_true: pd.Series, probability: np.ndarray) -> tuple[float,
         metrics = metric_dict(y_true, probability, threshold)
         rows.append({"Threshold": threshold, **metrics})
     table = pd.DataFrame(rows)
-    table = table.sort_values(["F1", "Recall", "Precision", "Accuracy"], ascending=[False, False, False, False])
+    table = table.sort_values(THRESHOLD_TIE_BREAKERS, ascending=[False] * len(THRESHOLD_TIE_BREAKERS))
     best = table.iloc[0].to_dict()
     threshold = float(best.pop("Threshold"))
     return threshold, {k: float(v) for k, v in best.items()}, table.reset_index(drop=True)

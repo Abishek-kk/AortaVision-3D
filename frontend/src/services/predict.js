@@ -115,3 +115,24 @@ export async function predictRisk(patientData) {
     disclaimer: payload.disclaimer ?? "",
   };
 }
+
+export async function getModelMetrics() {
+  let response;
+  try {
+    response = await fetch(`${API_BASE_URL}/metrics`);
+  } catch (error) {
+    throw new Error(
+      `Cannot reach the model metrics endpoint at ${API_BASE_URL}. (${error.message})`,
+    );
+  }
+
+  if (!response.ok) {
+    throw new Error(await responseError(response));
+  }
+
+  const payload = await response.json();
+  if (!payload?.perTarget || typeof payload.perTarget !== "object") {
+    throw new Error("The backend returned invalid model metrics.");
+  }
+  return payload;
+}

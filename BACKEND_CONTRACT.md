@@ -20,6 +20,52 @@ This document details the exact contract between the ML FastAPI backend and the 
 | `/metrics` | `GET` | Overall & per-target model performance metrics |
 | `/predict` | `POST` | Primary inference route for 4 targets (`CAD`, `LAD`, `LCX`, `RCA`) & SHAP explanations |
 
+### `GET /metrics` response
+
+The existing overall metrics and `perTarget` metric fields remain unchanged. Each target also includes
+its selected production `threshold` and additive `thresholdRationale` data. Precision and recall in
+`thresholdRationale.production_operating_point` are computed from training out-of-fold predictions;
+`holdout_report_only` is descriptive and is never used to select thresholds.
+
+```json
+{
+  "perTarget": {
+    "CAD": {
+      "accuracy": "<from classification_metrics.csv>",
+      "precision": "<from classification_metrics.csv>",
+      "recall": "<from classification_metrics.csv>",
+      "f1": "<from classification_metrics.csv>",
+      "rocAuc": "<from classification_metrics.csv>",
+      "threshold": "<from classification_metrics.csv>",
+      "thresholdRationale": {
+        "objective": "maximize F1",
+        "recall_floor": null,
+        "production_operating_point": {
+          "Precision": "<training OOF estimate>",
+          "Recall": "<training OOF estimate>"
+        }
+      },
+      "repeatedCv": {
+        "accuracy": {
+          "mean": "<from repeated_cv_summary.csv>",
+          "sd": "<from repeated_cv_summary.csv>",
+          "ci95Lower": "<from repeated_cv_summary.csv>",
+          "ci95Upper": "<from repeated_cv_summary.csv>"
+        },
+        "rocAuc": {
+          "mean": "<from repeated_cv_summary.csv>",
+          "sd": "<from repeated_cv_summary.csv>",
+          "ci95Lower": "<from repeated_cv_summary.csv>",
+          "ci95Upper": "<from repeated_cv_summary.csv>"
+        }
+      }
+    }
+  }
+}
+```
+
+String values above describe data provenance and are placeholders, not literal response values.
+
 ---
 
 ## 2. Request Contract (`POST /predict`)

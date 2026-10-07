@@ -196,7 +196,7 @@ The React frontend can call:
 POST http://localhost:8000/predict
 ```
 
-CORS is enabled for the default Vite frontend origin: `http://localhost:5173`.
+CORS is enabled for the default Vite frontend origins: `http://localhost:5173` and `http://127.0.0.1:5173`. Set `FRONTEND_ORIGIN` to a comma-separated list to override these defaults.
 
 ## Medical disclaimer
 

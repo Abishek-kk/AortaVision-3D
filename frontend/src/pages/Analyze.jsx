@@ -35,7 +35,7 @@ import GlowCard from "../components/GlowCard.jsx";
 import HeartGlow from "../components/HeartGlow.jsx";
 import { usePatientData } from "../context/PatientDataContext.jsx";
 import { SAMPLE_PATIENT } from "../data/samplePatient.js";
-import { predictRisk } from "../services/predict.js";
+import { getModelMetrics, predictRisk } from "../services/predict.js";
 import { getRiskColor, getRiskLevel } from "../utils/risk.js";
 
 const VESSEL_DETAILS = {
@@ -57,6 +57,16 @@ function riskName(value) {
   if (value < 50) return "Green";
   if (value <= 70) return "Yellow";
   return "Red";
+}
+
+function formatMetricEstimate(metric) {
+  if (
+    !metric ||
+    ![metric.mean, metric.sd, metric.ci95Lower, metric.ci95Upper].every(Number.isFinite)
+  ) {
+    return "—";
+  }
+  return `${metric.mean.toFixed(3)} ± ${metric.sd.toFixed(3)} [${metric.ci95Lower.toFixed(3)}, ${metric.ci95Upper.toFixed(3)}]`;
 }
 
 function Gauge({ probability }) {
@@ -847,10 +857,26 @@ export default function Analyze() {
   const [pinnedVessel, setPinnedVessel] = useState(null);
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [sampleError, setSampleError] = useState("");
+  const [modelMetrics, setModelMetrics] = useState(null);
+  const [modelMetricsError, setModelMetricsError] = useState("");
 
   const result = predictionResult;
   const vessels = result?.vessels ?? {};
   const activeVessel = pinnedVessel ?? hoveredVessel;
+
+  useEffect(() => {
+    let active = true;
+    getModelMetrics()
+      .then((metrics) => {
+        if (active) setModelMetrics(metrics);
+      })
+      .catch((error) => {
+        if (active) setModelMetricsError(error.message);
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function loadSample() {
     setIsLoadingSample(true);
@@ -978,6 +1004,105 @@ export default function Analyze() {
           </div>
         </GlowCard>
       </div>
+
+      <GlowCard
+        className="mt-3"
+        headerClassName="!py-2"
+        title="MODEL VALIDATION"
+      >
+        <div className="p-3 sm:p-4">
+          <p className="text-sm leading-relaxed text-slate-200">
+            Thresholds are set to favor sensitivity (catching disease) over precision, so some low-risk
+            patients may be flagged. This is intended for screening/decision support only.
+          </p>
+          {modelMetricsError ? (
+            <p aria-live="polite" className="mt-3 text-sm text-amber-200">
+              Validation metrics are unavailable: {modelMetricsError}
+            </p>
+          ) : modelMetrics ? (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[760px] text-left text-sm text-slate-200">
+                <caption className="mb-2 text-left text-xs text-slate-400">
+                  Repeated-CV mean ± SD [95% CI] and separate single-holdout results
+                </caption>
+                <thead className="text-xs uppercase tracking-wide text-slate-400">
+                  <tr>
+                    <th className="px-2 py-2">Target</th>
+                    <th className="px-2 py-2">Repeated-CV accuracy</th>
+                    <th className="px-2 py-2">Repeated-CV ROC-AUC</th>
+                    <th className="px-2 py-2">Holdout accuracy</th>
+                    <th className="px-2 py-2">Holdout ROC-AUC</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {["CAD", "LAD", "LCX", "RCA"].map((target) => {
+                    const targetMetrics = modelMetrics.perTarget[target];
+                    return (
+                      <tr className="border-t border-white/10" key={target}>
+                        <th className="px-2 py-2 font-semibold text-white">{target}</th>
+                        <td className="px-2 py-2">{formatMetricEstimate(targetMetrics?.repeatedCv?.accuracy)}</td>
+                        <td className="px-2 py-2">{formatMetricEstimate(targetMetrics?.repeatedCv?.rocAuc)}</td>
+                        <td className="px-2 py-2">{Number.isFinite(targetMetrics?.accuracy) ? targetMetrics.accuracy.toFixed(3) : "—"}</td>
+                        <td className="px-2 py-2">{Number.isFinite(targetMetrics?.rocAuc) ? targetMetrics.rocAuc.toFixed(3) : "—"}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              <table className="w-full min-w-[460px] text-left text-sm text-slate-200">
+                <thead className="text-xs uppercase tracking-wide text-slate-400">
+                  <tr>
+                    <th className="px-2 py-2">Target</th>
+                    <th className="px-2 py-2">Threshold</th>
+                    <th className="px-2 py-2">Precision / recall</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {["CAD", "LAD", "LCX", "RCA"].map((target) => {
+                    const targetMetrics = modelMetrics.perTarget[target];
+                    const rationale = targetMetrics?.thresholdRationale;
+                    const operatingPoint = rationale?.production_operating_point;
+                    const precision = operatingPoint?.Precision;
+                    const recall = operatingPoint?.Recall;
+                    const threshold = targetMetrics?.threshold;
+                    return (
+                      <tr className="border-t border-white/10" key={target}>
+                        <th className="px-2 py-2 font-semibold text-white">{target}</th>
+                        <td className="px-2 py-2">
+                          {Number.isFinite(threshold) ? threshold.toFixed(2) : "—"}
+                        </td>
+                        <td className="px-2 py-2">
+                          {Number.isFinite(precision) && Number.isFinite(recall) ? (
+                            <span className="inline-flex items-center gap-2">
+                              {`${Math.round(precision * 100)}% / ${Math.round(recall * 100)}%`}
+                              <span className="group relative inline-flex">
+                                <button
+                                  aria-label={`${target} chosen-threshold precision and recall`}
+                                  className="rounded-full text-cyan focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan"
+                                  title={`At threshold ${threshold.toFixed(2)}: precision ${Math.round(precision * 100)}%, recall ${Math.round(recall * 100)}% (training out-of-fold).`}
+                                  type="button"
+                                >
+                                  <Info aria-hidden="true" className="h-4 w-4" />
+                                </button>
+                              </span>
+                            </span>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p aria-live="polite" className="mt-3 text-sm text-slate-400">
+              Loading model validation metrics…
+            </p>
+          )}
+        </div>
+      </GlowCard>
 
       <div className="mt-3 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-2 sm:flex-row">
         <Link

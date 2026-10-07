@@ -49,6 +49,30 @@ class BackendValidationTest(unittest.TestCase):
             self.assertIn("loaded", response.json()[target])
             self.assertIn("threshold", response.json()[target])
 
+    def test_metrics_endpoint_exposes_threshold_rationale(self):
+        response = self.client.get("/metrics")
+        self.assertEqual(response.status_code, 200)
+        holdout_csv = pd.read_csv(PROJECT_ROOT / "metrics" / "classification_metrics.csv").set_index("Target")
+        cv_csv = pd.read_csv(PROJECT_ROOT / "metrics" / "repeated_cv_summary.csv").set_index(["Target", "Metric"])
+        for target in ("CAD", "LAD", "LCX", "RCA"):
+            self.assertIn(target, response.json()["perTarget"])
+            target_metrics = response.json()["perTarget"][target]
+            self.assertIn("threshold", target_metrics)
+            self.assertEqual(target_metrics["accuracy"], holdout_csv.loc[target, "Accuracy"])
+            self.assertEqual(target_metrics["rocAuc"], holdout_csv.loc[target, "ROC_AUC"])
+            for metric, api_name in (("Accuracy", "accuracy"), ("ROC_AUC", "rocAuc")):
+                cv_metric = target_metrics["repeatedCv"][api_name]
+                source = cv_csv.loc[(target, metric)]
+                self.assertEqual(cv_metric["mean"], source["Mean"])
+                self.assertEqual(cv_metric["sd"], source["SD"])
+                self.assertEqual(cv_metric["ci95Lower"], source["CI_95_Lower"])
+                self.assertEqual(cv_metric["ci95Upper"], source["CI_95_Upper"])
+            rationale = target_metrics["thresholdRationale"]
+            self.assertEqual(rationale["objective"], "maximize F1")
+            self.assertIn("recall_floor", rationale)
+            self.assertIn("Precision", rationale["production_operating_point"])
+            self.assertIn("Recall", rationale["production_operating_point"])
+
     def test_predict_endpoint(self):
         response = self.client.post("/predict", json=self.valid_payload)
         self.assertEqual(response.status_code, 200, response.text)

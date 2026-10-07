@@ -27,6 +27,9 @@ if not MODEL_DIR.is_absolute():
     MODEL_DIR = (PROJECT_ROOT / MODEL_DIR).resolve()
 
 MODEL_TARGETS = ("CAD", "LAD", "LCX", "RCA")
+METRICS_DIR = PROJECT_ROOT / "metrics"
+CLASSIFICATION_METRICS_PATH = METRICS_DIR / "classification_metrics.csv"
+REPEATED_CV_SUMMARY_PATH = METRICS_DIR / "repeated_cv_summary.csv"
 MODEL_PATHS = {
     target: MODEL_DIR / f"model_{target.lower()}.json"
     for target in MODEL_TARGETS
@@ -67,9 +70,9 @@ FEATURE_ORDER = _feature_order_from_metadata()
 
 
 def _allowed_origins() -> list[str]:
-    value = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173")
+    value = os.getenv("FRONTEND_ORIGIN", "http://localhost:5173,http://127.0.0.1:5173")
     origins = [origin.strip() for origin in value.split(",") if origin.strip()]
-    return origins or ["http://localhost:5173"]
+    return origins or ["http://localhost:5173", "http://127.0.0.1:5173"]
 
 
 ALLOWED_ORIGINS = _allowed_origins()
@@ -359,25 +362,99 @@ def models_status(request: Request) -> dict[str, Any]:
 def metrics() -> dict[str, Any]:
     metadata = _read_json(METADATA_PATH)
     selected_models = metadata.get("selected_models", {})
+    selected_thresholds = metadata.get("selected_thresholds", {})
+    threshold_rationale = metadata.get("threshold_rationale", {})
+    try:
+        holdout = pd.read_csv(CLASSIFICATION_METRICS_PATH)
+        repeated_cv = pd.read_csv(REPEATED_CV_SUMMARY_PATH)
+    except (OSError, pd.errors.EmptyDataError, pd.errors.ParserError, ValueError) as exc:
+        logger.exception("Unable to load canonical model metrics.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Canonical model metrics are unavailable or invalid.",
+        ) from exc
+
+    required_holdout_columns = {"Target", "Accuracy", "Precision", "Recall", "F1", "ROC_AUC", "Threshold"}
+    required_cv_columns = {"Target", "Metric", "Mean", "SD", "CI_95_Lower", "CI_95_Upper"}
+    if not required_holdout_columns.issubset(holdout.columns) or not required_cv_columns.issubset(repeated_cv.columns):
+        logger.error("Canonical model metric CSV is missing required columns.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Canonical model metrics are missing required fields.",
+        )
+
+    for frame, numeric_columns in (
+        (holdout, ("Accuracy", "Precision", "Recall", "F1", "ROC_AUC", "Threshold")),
+        (repeated_cv, ("Mean", "SD", "CI_95_Lower", "CI_95_Upper")),
+    ):
+        for column in numeric_columns:
+            numeric_values = pd.to_numeric(frame[column], errors="coerce")
+            if not np.isfinite(numeric_values.to_numpy(dtype=float)).all():
+                logger.error("Canonical model metric column %s contains invalid numeric values.", column)
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Canonical model metrics contain invalid numeric values.",
+                )
+            frame[column] = numeric_values
+
+    if holdout["Target"].duplicated().any() or repeated_cv.duplicated(["Target", "Metric"]).any():
+        logger.error("Canonical model metric CSV contains duplicate target/metric rows.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Canonical model metrics contain duplicate rows.",
+        )
+
+    holdout_by_target = holdout.set_index("Target")
+    cv_by_target_metric = repeated_cv.set_index(["Target", "Metric"])
+    missing_targets = set(MODEL_TARGETS).difference(holdout_by_target.index)
+    missing_cv = {
+        (target, metric)
+        for target in MODEL_TARGETS
+        for metric in ("Accuracy", "ROC_AUC")
+        if (target, metric) not in cv_by_target_metric.index
+    }
+    if missing_targets or missing_cv:
+        logger.error(
+            "Canonical metrics are incomplete. Missing holdout targets: %s; missing CV rows: %s",
+            sorted(missing_targets),
+            sorted(missing_cv),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Canonical model metrics are missing target results.",
+        )
+
     per_target = {}
     for target in MODEL_TARGETS:
+        holdout_row = holdout_by_target.loc[target]
         t_data = selected_models.get(target, {})
-        m = t_data.get("final_test_metrics", t_data.get("cv_metrics", {}))
+        cv_metrics = {}
+        for csv_metric, api_metric in (("Accuracy", "accuracy"), ("ROC_AUC", "rocAuc")):
+            row = cv_by_target_metric.loc[(target, csv_metric)]
+            cv_metrics[api_metric] = {
+                "mean": float(row["Mean"]),
+                "sd": float(row["SD"]),
+                "ci95Lower": float(row["CI_95_Lower"]),
+                "ci95Upper": float(row["CI_95_Upper"]),
+            }
         per_target[target] = {
-            "accuracy": float(m.get("Accuracy", 0.90)),
-            "precision": float(m.get("Precision", 0.90)),
-            "recall": float(m.get("Recall", 0.90)),
-            "f1": float(m.get("F1", 0.90)),
-            "rocAuc": float(m.get("ROC_AUC", 0.93)),
+            "accuracy": float(holdout_row["Accuracy"]),
+            "precision": float(holdout_row["Precision"]),
+            "recall": float(holdout_row["Recall"]),
+            "f1": float(holdout_row["F1"]),
+            "rocAuc": float(holdout_row["ROC_AUC"]),
+            "threshold": float(holdout_row["Threshold"]),
+            "thresholdRationale": threshold_rationale.get(target),
+            "repeatedCv": cv_metrics,
         }
-    cad_m = per_target.get("CAD", {"accuracy": 0.90, "precision": 0.90, "recall": 0.90, "f1": 0.90, "rocAuc": 0.93})
+    cad_m = per_target["CAD"]
     return {
         "accuracy": cad_m["accuracy"],
         "precision": cad_m["precision"],
         "recall": cad_m["recall"],
         "f1": cad_m["f1"],
         "rocAuc": cad_m["rocAuc"],
-        "perTarget": per_target
+        "perTarget": per_target,
     }
 
 
@@ -547,5 +624,3 @@ def predict(patient: PatientRequest, request: Request) -> PredictionResponse:
     except Exception:
         logger.exception("Unexpected error while generating predictions.")
         raise HTTPException(status_code=500, detail="Unexpected inference error.")
-
-

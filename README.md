@@ -47,9 +47,29 @@ CardioVision 3D is a clinical decision support prototype that combines multi-tar
 2. **Clinical Data Input Form**: Config-driven form with 54 raw clinical features covering Demographics, Medical History, Vitals & Exam, Symptoms, ECG, Lab Results, and Echocardiogram. Supports pre-set sample patient profiles (High Risk, Low Risk, Borderline).
 3. **Explainable AI (SHAP) Dashboard**: Top 10 SHAP feature contributions per target variable with custom directional tooltips and auto-generated summary sentences explaining risk drivers.
 4. **Physiological Reference Table**: Patient measurements compared against standard clinical reference ranges with status indicators and bidirectional SHAP risk contribution bars.
-5. **Model Validation Panel**: Displays overall and per-target ML performance metrics (Accuracy ~90.4%, ROC-AUC ~0.948) and 2x2 confusion matrices.
+5. **Model Validation Panel**: Displays API-provided repeated-CV and single-holdout metrics alongside selected-threshold precision and recall.
 6. **Print & PDF Export**: Clinical report view with snapshot of the 3D canvas and patient risk summaries.
 7. **Strict Target Leakage Protection**: Enforces runtime assertions preventing targets (`CAD`, `LAD`, `LCX`, `RCA`, `Cath`) from being passed as model input features.
+
+---
+
+## Model performance
+
+Repeated cross-validation is the headline estimate: 5-fold stratified CV repeated 10 times, with the
+preprocessor fitted inside each fold. Values are mean ± SD [95% percentile CI] over the 10
+repeat-level means. The single holdout is a separate, one-split result (n≈76); it is not the repeated-CV
+estimate and was not used to select the displayed thresholds.
+
+| Target | Repeated-CV accuracy: mean ± SD [95% CI] | Repeated-CV ROC-AUC: mean ± SD [95% CI] | Single holdout accuracy (n≈76) | Single holdout ROC-AUC (n≈76) |
+|---|---:|---:|---:|---:|
+| CAD | 0.890 ± 0.008 [0.881, 0.902] | 0.935 ± 0.005 [0.926, 0.942] | 0.816 | 0.949 |
+| LAD | 0.758 ± 0.005 [0.751, 0.767] | 0.836 ± 0.009 [0.824, 0.848] | 0.776 | 0.906 |
+| LCX | 0.678 ± 0.009 [0.664, 0.690] | 0.819 ± 0.009 [0.809, 0.835] | 0.724 | 0.832 |
+| RCA | 0.703 ± 0.010 [0.689, 0.718] | 0.802 ± 0.009 [0.788, 0.817] | 0.776 | 0.877 |
+
+The repeated-CV values come from [`metrics/repeated_cv_summary.csv`](./metrics/repeated_cv_summary.csv);
+the single-holdout values come from [`metrics/classification_metrics.csv`](./metrics/classification_metrics.csv).
+See [`docs/CANONICAL_METRICS.md`](./docs/CANONICAL_METRICS.md) for generation details and provenance.
 
 ---
 
@@ -101,8 +121,22 @@ record through the same live backend request.
 
 The frontend communicates with the backend via REST endpoints described in [`BACKEND_CONTRACT.md`](./BACKEND_CONTRACT.md):
 - `GET /health`: Health check for model & preprocessor loading.
-- `GET /metrics`: Model test metrics & confusion matrices.
+- `GET /metrics`: Repeated-CV summaries and single-holdout per-target metrics.
 - `POST /predict`: Primary inference route accepting 54 raw features and returning predictions for `CAD`, `LAD`, `LCX`, `RCA` along with SHAP explanations.
+
+---
+
+## How to verify reported metrics
+
+From the repository root, verify that the performance table above matches the canonical CSVs
+(values are rounded to three decimal places):
+
+```bash
+python scripts/check_metrics_consistency.py
+```
+
+The check exits non-zero if a README value is missing, stale, or differs from its source CSV by
+more than the displayed rounding tolerance.
 
 ---
 
