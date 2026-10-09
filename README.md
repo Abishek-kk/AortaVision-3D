@@ -1,179 +1,201 @@
 # CardioVision 3D (AortaVision 3D)
 
-> **Multimodal AI Hackathon 2026 — Track A: Cardiovascular Risk Visualization & Prediction**
+**Multimodal AI Hackathon 2026 · Track A: Cardiovascular Risk Visualization & Prediction**
 
-CardioVision 3D is a clinical decision support prototype that combines multi-target machine learning predictions (XGBoost models for overall **CAD**, **LAD**, **LCX**, and **RCA** stenosis risk) with an interactive 3D heart visualization and SHAP explainability dashboard.
+An interactive web app that predicts **coronary artery disease (CAD)** and **stenosis in the LAD, LCX and RCA** from clinical data, then maps the predicted risk onto a rotatable 3D heart. A dashboard explains every prediction with SHAP.
+
+> ⚠️ **Clinical safety disclaimer.** Predictions are for **decision support and educational purposes only**. They are **not** a substitute for formal diagnostic imaging (coronary angiography, CT angiography) or a clinician's judgment. Artery positions in the 3D scene are schematic, not an imaging-based lesion map.
+
+- 🎥 **Demo video:** `<YOUTUBE_LINK>` (3–10 min, unlisted)
+- 🏆 **Devpost:** `<DEVPOST_LINK>`
 
 ---
 
-## Architecture Overview
+## Team (Team Accelerate)
+
+| Name (real full name) | Role |
+|---|---|
+| `<Full Name>` | `<role>` |
+| `<Full Name>` | `<role>` |
+| `<Full Name>` | `<role>` |
+| `<Full Name>` | `<role>` |
+
+---
+
+## What it does
+
+| Track A requirement | Where it is in this project |
+|---|---|
+| Predict CAD + LAD/LCX/RCA stenosis | 4 XGBoost classifiers, served by FastAPI (`POST /predict`) |
+| No target leakage | `LAD`, `LCX`, `RCA`, `Cath` (and `CAD`) are excluded from inputs; the backend and training code assert this |
+| Metrics | Accuracy, precision, recall, F1, ROC-AUC per target (`GET /metrics`, `metrics/`) |
+| Interactive 3D heart | React Three Fiber + GLB heart model; rotate, zoom, hover and click vessels |
+| Colour-coded arteries | LAD, LCX and RCA colours update from predicted probabilities (green → yellow → red) |
+| Vessel-level detail | Selecting a vessel pins its risk card and switches the SHAP view to that vessel |
+| Clinical dashboard | CAD status, vessel probabilities, validation metrics |
+| Interpretability | SHAP feature contributions for CAD, LAD, LCX and RCA |
+| Physiological breakdown | Measurements vs reference ranges, with each one's contribution to the prediction |
+| Disclaimer | Always-visible banner, first-visit modal, and a note on the printed report |
+| No dedicated GPU needed | Low-poly GLB (~150 KB), no post-processing effects |
+
+---
+
+## Architecture
 
 ```
- +-----------------------------------------------------------------------------------+
- |                               CardioVision 3D Frontend                             |
- |                              (React 18 + Vite + JSX)                              |
- +----------------------------------------+------------------------------------------+
-                                          |
-                +-------------------------+-------------------------+
-                |                                                   |
-      +---------v----------+                               +--------v---------+
-      | CSV/JSON Patient   |                               | 3D Scene Canvas  |
-      | Upload / Sample    |                               | (Three.js / R3F) |
-      +---------+----------+                               +--------+---------+
-                |                                                   |
-                +-------------------------+-------------------------+
-                                          |
-                                 +--------v--------+
-                                 | Patient Data    |
-                                 | Context         |
-                                 +--------+--------+
-                                          |
-                                 +--------v--------+
-                                 | Fetch API       |
-                                 | POST /predict   |
-                                 +--------+--------+
-                                          |
-                                 +--------v--------+
-                                 | FastAPI Backend |
-                                 | port 8000       |
-                                 +-----------------+
+ Patient data (form / sample / CSV / JSON)
+                │
+                ▼
+   React 18 + Vite frontend ──────────────┐
+   (R3F 3D heart, SHAP, tables)           │ POST /predict
+                ▲                         ▼
+                │              FastAPI backend (port 8000)
+   probabilities + SHAP       ├─ preprocessing pipeline (joblib)
+                └──────────── ├─ 4 XGBoost models (CAD, LAD, LCX, RCA)
+                              └─ SHAP TreeExplainer
+```
+
+```
+.
+├── backend/          FastAPI app (main.py), request schema, tests
+├── frontend/         React + Vite + Tailwind + React Three Fiber
+│   └── public/models/heart.glb
+├── model/
+│   ├── aortavision_preprocessing.py   preprocessing + feature engineering
+│   ├── notebooks/                     training / evaluation scripts
+│   └── serialized/                    trained weights (model_*.json, preprocessor.joblib)
+├── dataset/          dataset + data dictionary + data-quality report
+├── metrics/          evaluation CSVs, ROC curves, confusion matrices, threshold sweeps
+├── explainability/   SHAP plots and feature-contribution CSVs
+├── docs/             CANONICAL_METRICS.md (how the metrics were produced)
+└── scripts/          check_metrics_consistency.py
 ```
 
 ---
 
-## Key Features
-
-1. **Interactive 3D Coronary Anatomy**: Color-coded 3D heart with animated Left Anterior Descending (**LAD**), Left Circumflex (**LCX**), and Right Coronary Artery (**RCA**). Risk colors dynamically lerp between Green (Low), Yellow (Moderate), Orange (High), and Red (Very High) based on model probabilities.
-2. **Clinical Data Input**: Upload a single patient record as CSV or JSON, or use the synthetic sample patient record.
-3. **Explainable AI (SHAP) Dashboard**: Top 10 SHAP feature contributions per target variable, selectable across CAD, LAD, LCX, and RCA, with directional tooltips and target-specific summary sentences.
-4. **Physiological Reference Table**: Submitted patient measurements compared against general adult reference ranges with status indicators and bidirectional SHAP risk contribution bars for the selected target.
-5. **Model Validation Panel**: Displays API-provided repeated-CV and single-holdout metrics alongside selected-threshold precision and recall.
-6. **Print & PDF Export**: The Analyze page's **Export Report** button opens the browser print dialog. The print layout includes a 3D canvas snapshot, all four target SHAP charts, the physiological and metrics tables, and the full disclaimer; choose “Save as PDF” in the browser to create a PDF.
-7. **Strict Target Leakage Protection**: Enforces runtime assertions preventing targets (`CAD`, `LAD`, `LCX`, `RCA`, `Cath`) from being passed as model input features.
-8. **First-Visit Disclaimer Modal**: Requires acknowledgement of the decision-support limitations, schematic 3D anatomy, and small single-centre training dataset before continuing on the first visit.
-
----
-
-## Model performance
-
-Repeated cross-validation is the headline estimate: 5-fold stratified CV repeated 10 times, with the
-preprocessor fitted inside each fold. Values are mean ± SD [95% percentile CI] over the 10
-repeat-level means. The single holdout is a separate, one-split result (n≈76); it is not the repeated-CV
-estimate and was not used to select the displayed thresholds.
-
-| Target | Repeated-CV accuracy: mean ± SD [95% CI] | Repeated-CV ROC-AUC: mean ± SD [95% CI] | Single holdout accuracy (n≈76) | Single holdout ROC-AUC (n≈76) |
-|---|---:|---:|---:|---:|
-| CAD | 0.890 ± 0.008 [0.881, 0.902] | 0.935 ± 0.005 [0.926, 0.942] | 0.816 | 0.949 |
-| LAD | 0.758 ± 0.005 [0.751, 0.767] | 0.836 ± 0.009 [0.824, 0.848] | 0.776 | 0.906 |
-| LCX | 0.678 ± 0.009 [0.664, 0.690] | 0.819 ± 0.009 [0.809, 0.835] | 0.724 | 0.832 |
-| RCA | 0.703 ± 0.010 [0.689, 0.718] | 0.802 ± 0.009 [0.788, 0.817] | 0.776 | 0.877 |
-
-The repeated-CV values come from [`metrics/repeated_cv_summary.csv`](./metrics/repeated_cv_summary.csv);
-the single-holdout values come from [`metrics/classification_metrics.csv`](./metrics/classification_metrics.csv).
-See [`docs/CANONICAL_METRICS.md`](./docs/CANONICAL_METRICS.md) for generation details and provenance.
-
----
-
-## Quick Start & Setup
+## Setup
 
 ### Prerequisites
-- **Node.js**: v18.0+
-- **Python**: 3.10+ (for backend)
+- **Python** 3.10 or newer
+- **Node.js** 18 or newer (with npm)
+- No GPU required
 
-### 1. Start the ML Backend (Port 8000)
+### 1. Backend (port 8000)
 ```bash
 cd backend
 python -m venv .venv
-source .venv/bin/activate  # Or on Windows: .venv\Scripts\activate
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 uvicorn main:app --reload --port 8000
 ```
+Check it: open http://localhost:8000/health → `{"status":"healthy"}`. API docs are at http://localhost:8000/docs.
 
-### 2. Start the Frontend Dev Server (Port 5173)
+### 2. Frontend (port 5173)
 ```bash
 cd frontend
+cp .env.example .env               # contains VITE_API_URL=http://localhost:8000
 npm install
 npm run dev
 ```
+Open **http://localhost:5173**.
 
-Open `http://localhost:5173` in your browser.
-
----
-
-## Environment Variables
-
-Copy [`frontend/.env.example`](./frontend/.env.example) to `frontend/.env`:
-
-```env
-VITE_API_URL=http://localhost:8000
+### 3. Tests and production build (optional)
+```bash
+pip install pytest httpx
+python -m pytest backend/test_backend.py     # run from the repo root
+cd frontend && npm run build
 ```
 
-- `VITE_API_URL`: Base URL of the FastAPI backend service.
+---
 
-The frontend sends one patient record to `POST /predict`. Upload a CSV containing
-one data row with the exact raw feature names, or a JSON object containing those
-features (either directly or under a `features` property). PDF extraction is not
-implemented. The “Use sample patient data” option submits a complete synthetic
-record through the same live backend request.
+## How to use
+
+1. Open the app and accept the disclaimer.
+2. On the home page, choose **Use sample patient data** (High Risk / Low Risk / Borderline), or upload a **CSV** (one row) or **JSON** with the 54 raw feature names.
+3. Click **Analyze**.
+4. On the analysis page:
+   - **Rotate** (drag), **zoom** (scroll / pinch) the 3D heart.
+   - **Hover** a vessel to see its probability, **click** it to pin the detail card.
+   - Switch the **SHAP tab** (CAD / LAD / LCX / RCA) to see why that risk was predicted. Red bars raise risk, blue bars lower it.
+   - Read the **physiological table** for each measurement's value, reference range and contribution.
+   - Check the **validation metrics** panel.
+   - Use **Export Report** to print or save a PDF.
+
+### API
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Model and preprocessor load status |
+| `GET /models/status` | Per-target model info and thresholds |
+| `GET /metrics` | Repeated-CV and holdout metrics per target |
+| `POST /predict` | Body `{"features": {...54 raw features...}}` → probabilities, thresholds, risk levels, SHAP contributions |
+
+Full contract: [`BACKEND_CONTRACT.md`](./BACKEND_CONTRACT.md).
 
 ---
 
-## Connecting to the Backend
+## Data and preprocessing
 
-The frontend communicates with the backend via REST endpoints described in [`BACKEND_CONTRACT.md`](./BACKEND_CONTRACT.md):
-- `GET /health`: Health check for model & preprocessor loading.
-- `GET /metrics`: Repeated-CV summaries and single-holdout per-target metrics.
-- `POST /predict`: Primary inference route accepting 54 raw features and returning predictions for `CAD`, `LAD`, `LCX`, `RCA` along with SHAP explanations.
+- **Dataset:** Z-Alizadeh Sani coronary artery disease dataset (UCI Machine Learning Repository), `dataset/dataset.csv`.
+- **Inputs (54 raw features):** demographics, history, vitals/exam, symptoms, ECG, laboratory values, echocardiography (e.g. Age, BMI, BP, PR, FBS, LDL, HDL, ST elevation/depression, T inversion, LVH, EF-TTE, Region RWMA).
+- **Targets:** `CAD` (derived from `Cath == CAD`), `LAD`, `LCX`, `RCA` (Stenotic / Normal).
+- **Leakage control:** `CAD`, `LAD`, `LCX`, `RCA` and `Cath` are never model inputs.
+- **Cleaning:** category spelling fixes, constant column (`Exertional CP`) removed, robust scaling for numeric features, one-hot encoding for categorical features, derived features (risk-factor count, LDL/HDL ratio, etc.). Details: [`dataset/data_quality_report.md`](./dataset/data_quality_report.md), [`dataset/data_dictionary.md`](./dataset/data_dictionary.md).
+
+> **TODO before submitting:** the task description says the dataset has 303 records, but `dataset/dataset.csv` has **378**. State here exactly where the extra rows come from, or replace the file with the original 303-row version and re-run the metrics.
 
 ---
 
-## How to verify reported metrics
+## Models and evaluation
 
-From the repository root, verify that the performance table above matches the canonical CSVs
-(values are rounded to three decimal places):
+- **Algorithm:** one XGBoost binary classifier per target, with a per-target decision threshold chosen on training data only.
+- **Validation:** 5-fold stratified cross-validation repeated 10 times (seed 42), preprocessing fitted inside each fold, plus one fixed multi-label-balanced holdout (n≈76). Repeated CV is the headline estimate; the holdout is reported separately.
 
+| Target | CV accuracy (mean ± SD) | CV ROC-AUC (mean ± SD) | Holdout accuracy | Holdout ROC-AUC |
+|---|---:|---:|---:|---:|
+| CAD | 0.890 ± 0.008 | 0.935 ± 0.005 | 0.816 | 0.949 |
+| LAD | 0.758 ± 0.005 | 0.836 ± 0.009 | 0.776 | 0.906 |
+| LCX | 0.678 ± 0.009 | 0.819 ± 0.009 | 0.724 | 0.832 |
+| RCA | 0.703 ± 0.010 | 0.802 ± 0.009 | 0.776 | 0.877 |
+
+Precision, recall, F1, PR-AUC, Brier score and 95% intervals are in [`metrics/repeated_cv_summary.csv`](./metrics/repeated_cv_summary.csv) and [`metrics/classification_metrics.csv`](./metrics/classification_metrics.csv). How they were produced: [`docs/CANONICAL_METRICS.md`](./docs/CANONICAL_METRICS.md).
+
+**Verify the README numbers against the CSVs:**
 ```bash
 python scripts/check_metrics_consistency.py
 ```
 
-The check exits non-zero if a README value is missing, stale, or differs from its source CSV by
-more than the displayed rounding tolerance.
+**Limitations:** single-centre data, small sample size, thresholds favour recall, LCX and RCA are the weakest targets. Results may not generalise to other hospitals.
 
 ---
 
-## Customization Guide
+## 3D pipeline
 
-### How to Add a New Feature
-1. To add a measurement to the physiological reference table, add an entry with its exact raw feature `key`, `label`, `unit`, `low`, and `high` to [`frontend/src/config/referenceRanges.js`](./frontend/src/config/referenceRanges.js).
-2. Keep synthetic example records in [`frontend/src/data/samplePatient.js`](./frontend/src/data/samplePatient.js) aligned with any supported feature additions.
-3. Adding a reference-range entry alone does not add a model input. Prediction features must be supported by the existing backend feature contract and model artifacts.
-
-### How to Add/Modify Artery Coordinates
-1. Open [`frontend/src/config/arteries.ts`](./frontend/src/config/arteries.ts).
-2. Edit 3D path coordinates (`main` and `branches`) or `labelAnchor` for `LAD`, `LCX`, or `RCA`.
-3. Use debug mode by visiting `http://localhost:5173/?debug=1` to visualize control points and export coordinates.
-
-### How to Swap in a Custom 3D Heart GLB Model
-1. Place your `heart.glb` file into `frontend/public/models/heart.glb`.
-2. Follow instructions in [`frontend/public/models/README.md`](./frontend/public/models/README.md) regarding polycount and Draco compression.
-3. If missing or invalid, the app automatically falls back to the high-performance procedural heart.
+- **Model:** `frontend/public/models/heart.glb` (open-source heart mesh, optimised for the web). If it fails to load, the app falls back to a procedural heart.
+- **Arteries:** LAD, LCX and RCA are tube meshes drawn over the heart. Colour comes from the predicted probability: green (< 50%), yellow (50–70%), red (> 70%).
+- **Interaction:** orbit controls (rotate, zoom), hover tooltips, click-to-pin vessel cards, legend toggle, fullscreen.
+- **Correspondence:** the same `LAD / LCX / RCA` keys are used by the model outputs, the 3D meshes, the SHAP tabs and the dashboard cards.
+- **Extending:** to add a feature, add it to the feature config and reference ranges; to add a vessel, add a mesh entry and a model target. No redesign needed.
 
 ---
 
-## Clinical Safety Disclaimers
+## Reproducing the models
 
-> **IMPORTANT DISCLAIMER**
-> CardioVision 3D is a research prototype for decision support and educational purposes only.
-> It is **NOT** a medical diagnostic tool and does **NOT** replace formal diagnostic imaging (e.g., coronary angiography, CT angiography) or clinical judgment by a qualified healthcare professional.
-> Coronary artery positions depicted in the 3D scene are schematic representations of ML model probability scores, not imaging-based lesion maps.
-> Models were trained on the Z-Alizadeh Sani dataset (303 patient records). Predictions may not generalize to other clinical cohorts.
+```bash
+pip install -r model/requirements.txt
+python model/notebooks/improve_metrics.py --repeats 1 --inner-folds 2 --trials 0   # quick smoke test
+```
+Trained weights are already included in `model/serialized/`, so training is **not** required to run the app.
+
+> **TODO before submitting:** add the script that trains the shipped models and the repeated-CV evaluation script, and link them here.
 
 ---
 
-## Demo Video Checklist
+## Resources
 
-- [x] **Input Flow**: Show sample patient selection (High Risk vs Low Risk) and clicking "Analyze Patient".
-- [x] **3D Heart Interaction**: Rotate, zoom, hover over LAD/LCX/RCA labels, observe smooth color transition and stenosis narrowing.
-- [x] **SHAP Explainability**: Toggle tabs between `CAD`, `LAD`, `LCX`, `RCA` and highlight key risk drivers.
-- [x] **Physiological Table & Metrics**: Show reference range indicators and model validation panel.
-- [x] **Disclaimers**: Confirm warning banner, first-visit modal, and 3D schematic note are clearly visible.
+- Dataset: Z-Alizadeh Sani, UCI Machine Learning Repository
+- 3D heart mesh: `<name, author and licence of heart.glb>`
+- Libraries: XGBoost, scikit-learn, SHAP, FastAPI, React, Vite, Three.js, React Three Fiber, drei, Recharts, Tailwind CSS
+
+## Licence
+
+`<MIT or similar — add text to the LICENSE file>`
