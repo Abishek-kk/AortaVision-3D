@@ -160,7 +160,7 @@ export default function About() {
             </p>
             <h1 className="max-w-3xl text-4xl font-extrabold leading-[1.08] sm:text-5xl lg:text-6xl">
               <span className="text-white">About </span>
-              <span className="text-cyan">HeartCare AI</span>
+              <span className="text-cyan">AortaVision 3D</span>
             </h1>
             <p className="mt-5 max-w-3xl text-base leading-relaxed text-blue-100 sm:text-lg">
               A machine learning (XGBoost) powered interactive platform to predict
@@ -201,7 +201,7 @@ export default function About() {
               <article className="h-full rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-6">
                 <SectionHeading Icon={HeartPulse}>Project Overview</SectionHeading>
                 <p className="leading-relaxed text-slate-700">
-                  HeartCare AI uses an <strong className="font-extrabold text-blue-700">XGBoost</strong> model
+                  AortaVision 3D uses an <strong className="font-extrabold text-blue-700">XGBoost</strong> model
                   to predict overall CAD and vessel-specific stenosis (LAD, LCX,
                   RCA) from demographic, clinical, ECG, laboratory and
                   echocardiographic data. Predictions are mapped to an

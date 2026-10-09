@@ -1,6 +1,6 @@
-# CardioVision 3D - Backend API Contract & Specification
+# AortaVision 3D - Backend API Contract & Specification
 
-This document details the exact contract between the ML FastAPI backend and the CardioVision 3D frontend.
+This document details the exact contract between the ML FastAPI backend and the AortaVision 3D frontend.
 
 ---
 

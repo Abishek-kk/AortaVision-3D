@@ -1,11 +1,14 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-const STORAGE_KEY = "heartcare-ai-patient-data";
+const STORAGE_KEY = "aortavision-3d-patient-data";
+const LEGACY_STORAGE_KEY = "heartcare-ai-patient-data";
 const PatientDataContext = createContext(null);
 
 function readStoredData() {
   try {
-    const stored = window.sessionStorage.getItem(STORAGE_KEY);
+    const stored =
+      window.sessionStorage.getItem(STORAGE_KEY) ??
+      window.sessionStorage.getItem(LEGACY_STORAGE_KEY);
     if (!stored) return { uploadedFiles: [], predictionResult: null };
 
     const parsed = JSON.parse(stored);

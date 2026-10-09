@@ -20,14 +20,14 @@ export default function Navbar() {
         className="mx-auto flex min-h-[76px] max-w-screen-2xl items-center justify-between gap-4 px-5 py-3 sm:px-8"
       >
         <NavLink
-          aria-label="HeartCare AI home"
+          aria-label="AortaVision 3D home"
           className="flex min-w-0 items-center gap-3"
           onClick={() => setMenuOpen(false)}
           to="/"
         >
           <Logo className="h-10 w-10 shrink-0 sm:h-11 sm:w-11" />
           <span className="max-w-[330px] text-sm font-extrabold leading-tight sm:text-base">
-            Multimodal AI Hackathon 2026 - Track A
+            AortaVision 3D · Multimodal AI Hackathon 2026 - Track A
           </span>
         </NavLink>
 

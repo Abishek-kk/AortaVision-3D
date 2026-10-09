@@ -1,4 +1,4 @@
-# CardioVision 3D (AortaVision 3D)
+# AortaVision 3D
 
 **Multimodal AI Hackathon 2026 · Track A: Cardiovascular Risk Visualization & Prediction**
 
