@@ -10,3 +10,6 @@ imbalanced-learn
 openpyxl
 jupyter
 notebook
+optuna>=4.0,<5.0
+lightgbm>=4.5,<5.0
+catboost>=1.2.8,<2.0
