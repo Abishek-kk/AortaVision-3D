@@ -11,6 +11,7 @@ import {
   Minimize2,
   Pause,
   Play,
+  Printer,
   RotateCcw,
   ZoomIn,
   ZoomOut,
@@ -34,6 +35,7 @@ import GlowButton from "../components/GlowButton.jsx";
 import GlowCard from "../components/GlowCard.jsx";
 import HeartGlow from "../components/HeartGlow.jsx";
 import { usePatientData } from "../context/PatientDataContext.jsx";
+import { REFERENCE_RANGES } from "../config/referenceRanges.js";
 import { SAMPLE_PATIENT } from "../data/samplePatient.js";
 import { getModelMetrics, predictRisk } from "../services/predict.js";
 import { getRiskColor, getRiskLevel } from "../utils/risk.js";
@@ -53,10 +55,46 @@ const VESSEL_DETAILS = {
   },
 };
 
+const TARGETS = ["CAD", "LAD", "LCX", "RCA"];
+
 function riskName(value) {
   if (value < 50) return "Green";
   if (value <= 70) return "Yellow";
   return "Red";
+}
+
+function normalizeFeatureName(feature) {
+  return String(feature ?? "").replace(/^(?:num__|cat__)/, "");
+}
+
+function getSubmittedFeatures(uploadedFiles) {
+  let features = uploadedFiles?.[0]?.parsedData;
+  if (Array.isArray(features)) features = features[0];
+  if (features?.features && typeof features.features === "object") {
+    features = features.features;
+  }
+  return features && typeof features === "object" && !Array.isArray(features)
+    ? features
+    : {};
+}
+
+function getTargetExplanations(result, target) {
+  const explanations = result?.explanations?.[target];
+  if (!Array.isArray(explanations)) return [];
+  return explanations
+    .map((item) => ({
+      feature: normalizeFeatureName(item.feature),
+      value: Number(item.contribution),
+    }))
+    .filter((item) => item.feature && Number.isFinite(item.value));
+}
+
+function formatPatientValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  const numericValue = Number(value);
+  return Number.isFinite(numericValue)
+    ? numericValue.toLocaleString(undefined, { maximumFractionDigits: 2 })
+    : String(value);
 }
 
 function formatMetricEstimate(metric) {
@@ -468,7 +506,7 @@ function VesselTooltip({ name, value, pinned, onUnpin }) {
   const fullName = VESSEL_DETAILS[name].fullName;
   return (
     <div
-      className="pointer-events-auto absolute bottom-4 left-1/2 z-10 w-[min(92%,360px)] -translate-x-1/2 rounded-xl border bg-deepNavy/95 p-3 text-left shadow-2xl backdrop-blur sm:left-4 sm:translate-x-0"
+      className="print-hide pointer-events-auto absolute bottom-4 left-1/2 z-10 w-[min(92%,360px)] -translate-x-1/2 rounded-xl border bg-deepNavy/95 p-3 text-left shadow-2xl backdrop-blur sm:left-4 sm:translate-x-0"
       style={{ borderColor: `${color}99`, boxShadow: `0 0 18px ${color}35` }}
       role="status"
     >
@@ -502,10 +540,12 @@ function VesselTooltip({ name, value, pinned, onUnpin }) {
 
 function HeartViewer({ vessels, activeVessel, onHover, onLeave, onPin }) {
   const viewerRef = useRef(null);
+  const printSnapshotRef = useRef(null);
   const [showLegend, setShowLegend] = useState(false);
   const [autoRotate, setAutoRotate] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [fullscreenError, setFullscreenError] = useState("");
+  const [snapshotError, setSnapshotError] = useState("");
   const [modelScale, setModelScale] = useState(1);
   const [rotation, setRotation] = useState([0, 0]);
   const [modelExists, setModelExists] = useState(false);
@@ -546,6 +586,25 @@ function HeartViewer({ vessels, activeVessel, onHover, onLeave, onPin }) {
     return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
 
+  useEffect(() => {
+    function capturePrintSnapshot() {
+      try {
+        const canvas = viewerRef.current?.querySelector("canvas");
+        if (!canvas || !printSnapshotRef.current) {
+          throw new Error("The 3D heart canvas is not available.");
+        }
+        printSnapshotRef.current.src = canvas.toDataURL("image/png");
+        setSnapshotError("");
+      } catch (error) {
+        console.error("Unable to capture a 3D heart print snapshot.", error);
+        setSnapshotError("The 3D heart snapshot could not be captured for printing.");
+      }
+    }
+
+    window.addEventListener("beforeprint", capturePrintSnapshot);
+    return () => window.removeEventListener("beforeprint", capturePrintSnapshot);
+  }, []);
+
   async function toggleFullscreen() {
     const viewer = viewerRef.current;
     if (!viewer) return;
@@ -575,12 +634,12 @@ function HeartViewer({ vessels, activeVessel, onHover, onLeave, onPin }) {
   return (
     <div
       ref={viewerRef}
-      className={`relative overflow-hidden border border-cyan/30 bg-[#020a1c] ${
+      className={`heart-viewer relative overflow-hidden border border-cyan/30 bg-[#020a1c] ${
         isFullscreen ? "h-screen w-screen rounded-none" : "h-[280px] rounded-2xl sm:h-[320px] lg:h-[360px]"
       }`}
     >
-      <div className="pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,rgba(14,52,105,0.38),transparent_68%)]" />
-      <div className="absolute left-3 top-3 z-10">
+      <div className="print-hide pointer-events-none absolute inset-0 z-[1] bg-[radial-gradient(ellipse_at_center,rgba(14,52,105,0.38),transparent_68%)]" />
+      <div className="print-hide absolute left-3 top-3 z-10">
         <button
           aria-expanded={showLegend}
           aria-label="Toggle stenosis risk legend"
@@ -599,7 +658,7 @@ function HeartViewer({ vessels, activeVessel, onHover, onLeave, onPin }) {
           </div>
         )}
       </div>
-      <div className="absolute right-3 top-3 z-10 flex flex-col gap-2">
+      <div className="print-hide absolute right-3 top-3 z-10 flex flex-col gap-2">
         <button
           aria-label={isFullscreen ? "Exit full screen" : "View heart in full screen"}
           className="rounded-lg border border-cyan/35 bg-deepNavy/90 p-2 text-cyan transition hover:bg-midNavy"
@@ -657,15 +716,15 @@ function HeartViewer({ vessels, activeVessel, onHover, onLeave, onPin }) {
         </button>
       </div>
       {fullscreenError && (
-        <p className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-deepNavy/95 px-3 py-2 text-center text-sm text-white">
+        <p className="print-hide absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-deepNavy/95 px-3 py-2 text-center text-sm text-white">
           {fullscreenError}
         </p>
       )}
       <Canvas
         camera={{ fov: 43, position: [0, 0.53, 6.8] }}
-        className="cursor-grab active:cursor-grabbing"
+        className="heart-live-canvas cursor-grab active:cursor-grabbing"
         dpr={[1, 1.75]}
-        gl={{ alpha: true, antialias: true }}
+        gl={{ alpha: true, antialias: true, preserveDrawingBuffer: true }}
         onPointerMissed={() => onLeave()}
       >
         <Suspense fallback={<ModelLoadingFallback />}>
@@ -682,7 +741,17 @@ function HeartViewer({ vessels, activeVessel, onHover, onLeave, onPin }) {
           />
         </Suspense>
       </Canvas>
-      <div className="absolute bottom-3 right-3 z-10 grid grid-cols-3 gap-1.5 rounded-xl border border-cyan/25 bg-deepNavy/85 p-2">
+      <img
+        ref={printSnapshotRef}
+        alt="Snapshot of the interactive 3D heart model"
+        className="print-heart-snapshot"
+      />
+      {snapshotError && (
+        <p aria-live="assertive" className="print-hide absolute bottom-3 left-1/2 z-10 -translate-x-1/2 rounded-lg bg-deepNavy/95 px-3 py-2 text-center text-sm text-amber-200">
+          {snapshotError}
+        </p>
+      )}
+      <div className="print-hide absolute bottom-3 right-3 z-10 grid grid-cols-3 gap-1.5 rounded-xl border border-cyan/25 bg-deepNavy/85 p-2">
         <span />
         <button
           aria-label="Rotate heart up"
@@ -746,8 +815,7 @@ function ShapTooltip({ active, payload, label }) {
 }
 
 function ShapChart({ shap }) {
-  const data = shap
-    .slice(0, 8);
+  const data = shap.slice(0, 10);
   const axisLimit = Math.max(
     0.01,
     ...data.map((item) => Math.abs(Number(item.value) || 0)),
@@ -802,6 +870,136 @@ function ShapChart({ shap }) {
   );
 }
 
+function PrintShapChart({ target, shap }) {
+  const data = shap.slice(0, 10);
+  const maximum = Math.max(0.01, ...data.map((item) => Math.abs(item.value)));
+
+  return (
+    <section className="print-shap-target">
+      <h3>{target} feature contributions</h3>
+      {data.length === 0 ? (
+        <p>No feature-contribution explanations are available for this prediction.</p>
+      ) : (
+        <div className="print-shap-rows">
+          {data.map((item) => (
+            <div className="print-shap-row" key={item.feature}>
+              <span>{item.feature}</span>
+              <div aria-hidden="true" className="print-shap-track">
+                <i className="print-shap-zero" />
+                <i
+                  className={`print-shap-bar ${item.value < 0 ? "print-shap-bar-negative" : "print-shap-bar-positive"}`}
+                  style={{ width: `${(Math.abs(item.value) / maximum) * 50}%` }}
+                />
+              </div>
+              <strong>{item.value > 0 ? "+" : ""}{item.value.toFixed(4)}</strong>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PhysiologicalMeasurements({ features, shap }) {
+  const contributions = new Map(
+    shap.map((item) => [normalizeFeatureName(item.feature), item.value]),
+  );
+  const maximumContribution = Math.max(
+    0.01,
+    ...shap.map((item) => Math.abs(item.value)),
+  );
+
+  return (
+    <div className="overflow-x-auto p-3 sm:p-4">
+      <table className="w-full min-w-[760px] text-left text-sm text-slate-200 physiological-table">
+        <thead className="text-xs uppercase tracking-wide text-slate-400">
+          <tr>
+            <th className="px-2 py-2">Measurement</th>
+            <th className="px-2 py-2">Patient value</th>
+            <th className="px-2 py-2">Adult reference range</th>
+            <th className="px-2 py-2">Status</th>
+            <th className="px-2 py-2">SHAP contribution</th>
+          </tr>
+        </thead>
+        <tbody>
+          {REFERENCE_RANGES.map(({ key, label, unit, low, high }) => {
+            const rawValue = features[key];
+            const numericValue =
+              rawValue === null || rawValue === undefined || rawValue === ""
+                ? Number.NaN
+                : Number(rawValue);
+            const hasValue = Number.isFinite(numericValue);
+            const status = !hasValue
+              ? "—"
+              : numericValue < low
+                ? "Low"
+                : numericValue > high
+                  ? "High"
+                  : "Normal";
+            const contribution = contributions.get(key);
+            const hasContribution = Number.isFinite(contribution);
+            const barWidth = hasContribution
+              ? `${(Math.abs(contribution) / maximumContribution) * 50}%`
+              : "0%";
+
+            return (
+              <tr className="border-t border-white/10" key={key}>
+                <th className="px-2 py-2 font-semibold text-white">{label}</th>
+                <td className="px-2 py-2">
+                  {hasValue ? `${formatPatientValue(rawValue)} ${unit}` : "—"}
+                </td>
+                <td className="px-2 py-2">{`${low}–${high} ${unit}`}</td>
+                <td className="px-2 py-2">
+                  <span
+                    className={`inline-flex rounded-full border px-2 py-0.5 text-xs font-bold ${
+                      status === "Low"
+                        ? "border-sky-300/50 bg-sky-400/10 text-sky-200"
+                        : status === "High"
+                          ? "border-rose-300/50 bg-rose-400/10 text-rose-200"
+                          : status === "Normal"
+                            ? "border-emerald-300/50 bg-emerald-400/10 text-emerald-200"
+                            : "border-slate-400/40 text-slate-300"
+                    }`}
+                  >
+                    {status}
+                  </span>
+                </td>
+                <td className="px-2 py-2">
+                  {hasContribution ? (
+                    <div className="flex min-w-[150px] items-center gap-2">
+                      <div aria-hidden="true" className="contribution-track">
+                        <span className="contribution-zero" />
+                        <span
+                          className={`contribution-bar ${
+                            contribution < 0 ? "contribution-decreases-risk" : "contribution-increases-risk"
+                          }`}
+                          style={{
+                            width: barWidth,
+                            ...(contribution < 0 ? { right: "50%" } : { left: "50%" }),
+                          }}
+                        />
+                      </div>
+                      <span className="whitespace-nowrap tabular-nums">
+                        {contribution > 0 ? "+" : ""}{contribution.toFixed(4)}
+                      </span>
+                    </div>
+                  ) : (
+                    "—"
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="mt-2 text-xs text-slate-400">
+        General adult reference ranges are contextual only and are not diagnostic. Measurements not
+        included in the selected target&apos;s top 10 SHAP features have no contribution shown.
+      </p>
+    </div>
+  );
+}
+
 function EmptyDashboard({ onLoadSample, isLoading }) {
   return (
     <section className="flex flex-1 flex-col items-center justify-center px-5 py-16 text-center">
@@ -851,10 +1049,15 @@ function downloadReport(result) {
 }
 
 export default function Analyze() {
-  const { predictionResult, setUploadedFiles, setPredictionResult } =
-    usePatientData();
+  const {
+    predictionResult,
+    setUploadedFiles,
+    setPredictionResult,
+    uploadedFiles,
+  } = usePatientData();
   const [hoveredVessel, setHoveredVessel] = useState(null);
   const [pinnedVessel, setPinnedVessel] = useState(null);
+  const [selectedTarget, setSelectedTarget] = useState("CAD");
   const [isLoadingSample, setIsLoadingSample] = useState(false);
   const [sampleError, setSampleError] = useState("");
   const [modelMetrics, setModelMetrics] = useState(null);
@@ -863,6 +1066,10 @@ export default function Analyze() {
   const result = predictionResult;
   const vessels = result?.vessels ?? {};
   const activeVessel = pinnedVessel ?? hoveredVessel;
+  const submittedFeatures = useMemo(
+    () => getSubmittedFeatures(uploadedFiles),
+    [uploadedFiles],
+  );
 
   useEffect(() => {
     let active = true;
@@ -877,6 +1084,10 @@ export default function Analyze() {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (pinnedVessel) setSelectedTarget(pinnedVessel);
+  }, [pinnedVessel]);
 
   async function loadSample() {
     setIsLoadingSample(true);
@@ -916,10 +1127,16 @@ export default function Analyze() {
 
   const cadProbability = Number(result.cad?.probability ?? 0);
   const probabilityPercent = Math.round(cadProbability * 100);
-  const shap = Array.isArray(result.shap) ? result.shap : [];
+  const shap = getTargetExplanations(result, selectedTarget);
+  const summary = shap.length
+    ? `Top ${selectedTarget} risk drivers: ${shap.slice(0, 2).map((item) => item.feature).join(" and ")}.`
+    : "No feature-contribution explanations are available for this prediction.";
+  const printExplanations = Object.fromEntries(
+    TARGETS.map((target) => [target, getTargetExplanations(result, target)]),
+  );
 
   return (
-    <section className="mx-auto flex w-full max-w-[1700px] flex-1 flex-col px-4 py-2 sm:px-6 sm:py-3 lg:px-8">
+    <section className="analysis-dashboard mx-auto flex w-full max-w-[1700px] flex-1 flex-col px-4 py-2 sm:px-6 sm:py-3 lg:px-8">
       <div className="relative mb-2 flex min-h-14 items-center justify-center px-16 text-center sm:mb-3">
         <h1 className="text-2xl font-extrabold leading-tight tracking-wide text-white sm:text-3xl md:text-4xl">
           ANALYSIS <span className="text-cyan">RESULTS &amp; CLINICAL DASHBOARD</span>
@@ -927,9 +1144,34 @@ export default function Analyze() {
         <HeartGlow className="absolute right-0 top-1 w-16 sm:right-3 sm:top-0 sm:w-20" />
       </div>
 
-      <div className="grid items-stretch gap-3 min-[960px]:grid-cols-[minmax(225px,1fr)_minmax(360px,1.6fr)_minmax(260px,1fr)]">
+      <section className="print-only print-patient-summary">
+        <h2>Patient summary</h2>
+        <p>
+          Age: {formatPatientValue(submittedFeatures.Age)} years · Sex:{" "}
+          {formatPatientValue(submittedFeatures.Sex)} · BMI:{" "}
+          {formatPatientValue(submittedFeatures.BMI)} kg/m² · Blood pressure:{" "}
+          {formatPatientValue(submittedFeatures.BP)} mmHg
+        </p>
+        <p>
+          Overall CAD status: {result.cad?.present ? "Present" : "Absent"} (
+          {probabilityPercent}% probability).
+        </p>
+        <ul>
+          {["LAD", "LCX", "RCA"].map((target) => {
+            const probability = Number(result.predictions?.[target]?.probability);
+            return (
+              <li key={target}>
+                {target}: {Number.isFinite(probability) ? `${(probability * 100).toFixed(1)}%` : "—"}
+              </li>
+            );
+          })}
+        </ul>
+        <p>{summary}</p>
+      </section>
+
+      <div className="analysis-results-grid grid items-stretch gap-3 min-[960px]:grid-cols-[minmax(225px,1fr)_minmax(360px,1.6fr)_minmax(260px,1fr)]">
         <GlowCard
-          className="min-w-0"
+          className="min-w-0 print-card"
           headerClassName="!py-2"
           title="PREDICTION SCORES"
         >
@@ -962,7 +1204,7 @@ export default function Analyze() {
         </GlowCard>
 
         <GlowCard
-          className="min-w-0"
+          className="min-w-0 print-card"
           headerClassName="!py-2"
           title="INTERACTIVE 3D HEART MODEL"
         >
@@ -984,14 +1226,32 @@ export default function Analyze() {
         </GlowCard>
 
         <GlowCard
-          className="min-w-0"
+          className="min-w-0 print-card"
           headerClassName="!py-2"
           title="PREDICTION EXPLANATION (KEY FACTORS)"
         >
           <div className="p-3 sm:p-4">
             <p className="mb-2 min-h-9 text-sm leading-snug text-slate-200">
-              {result.summary}
+              {summary}
             </p>
+            <div aria-label="Choose prediction target" className="mb-3 flex flex-wrap gap-2" role="tablist">
+              {TARGETS.map((target) => (
+                <button
+                  key={target}
+                  aria-selected={selectedTarget === target}
+                  className={`print-hide rounded-full border px-3 py-1.5 text-xs font-extrabold transition ${
+                    selectedTarget === target
+                      ? "border-cyan bg-cyan/15 text-cyan"
+                      : "border-white/20 text-slate-300 hover:border-cyan/60 hover:text-white"
+                  }`}
+                  onClick={() => setSelectedTarget(target)}
+                  role="tab"
+                  type="button"
+                >
+                  {target}
+                </button>
+              ))}
+            </div>
             <div className="mb-3 flex items-center justify-end gap-3 text-[11px] text-slate-300">
               <span className="flex items-center gap-1.5">
                 <i className="h-2.5 w-2.5 rounded-sm bg-cyan" /> Negative
@@ -1000,13 +1260,39 @@ export default function Analyze() {
                 <i className="h-2.5 w-2.5 rounded-sm bg-[#FF2E7E]" /> Positive
               </span>
             </div>
-            <ShapChart shap={shap} />
+            <div className="interactive-shap-chart">
+              <ShapChart shap={shap} />
+            </div>
           </div>
         </GlowCard>
       </div>
 
       <GlowCard
-        className="mt-3"
+        className="print-card mt-3"
+        headerClassName="!py-2"
+        title="PHYSIOLOGICAL MEASUREMENTS"
+      >
+        <PhysiologicalMeasurements features={submittedFeatures} shap={shap} />
+      </GlowCard>
+
+      <GlowCard
+        className="print-only print-card mt-3"
+        headerClassName="!py-2"
+        title="SHAP EXPLANATIONS BY TARGET"
+      >
+        <div className="print-shap-reports">
+          {TARGETS.map((target) => (
+            <PrintShapChart
+              key={target}
+              shap={printExplanations[target]}
+              target={target}
+            />
+          ))}
+        </div>
+      </GlowCard>
+
+      <GlowCard
+        className="print-card mt-3"
         headerClassName="!py-2"
         title="MODEL VALIDATION"
       >
@@ -1104,21 +1390,36 @@ export default function Analyze() {
         </div>
       </GlowCard>
 
-      <div className="mt-3 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-2 sm:flex-row">
+      <div className="print-hide mt-3 flex flex-col items-center justify-between gap-2 border-t border-white/10 pt-2 sm:flex-row">
         <Link
           className="text-sm font-semibold text-cyan underline-offset-4 transition hover:text-white hover:underline"
           to="/"
         >
           Re-upload data
         </Link>
-        <GlowButton
-          className="gap-2"
-          onClick={() => downloadReport(result)}
-        >
-          <Download aria-hidden="true" className="h-4 w-4" />
-          Export report (JSON)
-        </GlowButton>
+        <div className="flex flex-wrap items-center justify-center gap-3">
+          <GlowButton className="gap-2" onClick={() => window.print()}>
+            <Printer aria-hidden="true" className="h-4 w-4" />
+            Export Report
+          </GlowButton>
+          <GlowButton
+            className="gap-2"
+            onClick={() => downloadReport(result)}
+          >
+            <Download aria-hidden="true" className="h-4 w-4" />
+            Export JSON
+          </GlowButton>
+        </div>
       </div>
+      <p className="print-only print-full-disclaimer">
+        AortaVision 3D is a research prototype for decision support and educational purposes only.
+        It is not a medical diagnostic tool and does not replace formal diagnostic imaging, including
+        coronary angiography or CT angiography, or a clinician&apos;s judgment. Predictions are not
+        a substitute for formal diagnostic imaging or evaluation by a qualified healthcare
+        professional. The 3D artery positions are schematic representations of model probabilities,
+        not imaging-based lesion maps. The model was trained on a small single-centre dataset of 303
+        patient records. Predictions may not generalize to other clinical cohorts.
+      </p>
     </section>
   );
 }

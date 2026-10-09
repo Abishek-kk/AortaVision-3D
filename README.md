@@ -44,12 +44,13 @@ CardioVision 3D is a clinical decision support prototype that combines multi-tar
 ## Key Features
 
 1. **Interactive 3D Coronary Anatomy**: Color-coded 3D heart with animated Left Anterior Descending (**LAD**), Left Circumflex (**LCX**), and Right Coronary Artery (**RCA**). Risk colors dynamically lerp between Green (Low), Yellow (Moderate), Orange (High), and Red (Very High) based on model probabilities.
-2. **Clinical Data Input Form**: Config-driven form with 54 raw clinical features covering Demographics, Medical History, Vitals & Exam, Symptoms, ECG, Lab Results, and Echocardiogram. Supports pre-set sample patient profiles (High Risk, Low Risk, Borderline).
-3. **Explainable AI (SHAP) Dashboard**: Top 10 SHAP feature contributions per target variable with custom directional tooltips and auto-generated summary sentences explaining risk drivers.
-4. **Physiological Reference Table**: Patient measurements compared against standard clinical reference ranges with status indicators and bidirectional SHAP risk contribution bars.
+2. **Clinical Data Input**: Upload a single patient record as CSV or JSON, or use the synthetic sample patient record.
+3. **Explainable AI (SHAP) Dashboard**: Top 10 SHAP feature contributions per target variable, selectable across CAD, LAD, LCX, and RCA, with directional tooltips and target-specific summary sentences.
+4. **Physiological Reference Table**: Submitted patient measurements compared against general adult reference ranges with status indicators and bidirectional SHAP risk contribution bars for the selected target.
 5. **Model Validation Panel**: Displays API-provided repeated-CV and single-holdout metrics alongside selected-threshold precision and recall.
-6. **Print & PDF Export**: Clinical report view with snapshot of the 3D canvas and patient risk summaries.
+6. **Print & PDF Export**: The Analyze page's **Export Report** button opens the browser print dialog. The print layout includes a 3D canvas snapshot, all four target SHAP charts, the physiological and metrics tables, and the full disclaimer; choose “Save as PDF” in the browser to create a PDF.
 7. **Strict Target Leakage Protection**: Enforces runtime assertions preventing targets (`CAD`, `LAD`, `LCX`, `RCA`, `Cath`) from being passed as model input features.
+8. **First-Visit Disclaimer Modal**: Requires acknowledgement of the decision-support limitations, schematic 3D anatomy, and small single-centre training dataset before continuing on the first visit.
 
 ---
 
@@ -143,9 +144,9 @@ more than the displayed rounding tolerance.
 ## Customization Guide
 
 ### How to Add a New Feature
-1. Open [`frontend/src/config/features.ts`](./frontend/src/config/features.ts).
-2. Add a new `FeatureDef` object to `FEATURES` array with `key`, `label`, `section`, `type`, `default`, `unit`, `min`, `max`, `step`.
-3. If applicable, add standard reference range to [`frontend/src/config/referenceRanges.ts`](./frontend/src/config/referenceRanges.ts).
+1. To add a measurement to the physiological reference table, add an entry with its exact raw feature `key`, `label`, `unit`, `low`, and `high` to [`frontend/src/config/referenceRanges.js`](./frontend/src/config/referenceRanges.js).
+2. Keep synthetic example records in [`frontend/src/data/samplePatient.js`](./frontend/src/data/samplePatient.js) aligned with any supported feature additions.
+3. Adding a reference-range entry alone does not add a model input. Prediction features must be supported by the existing backend feature contract and model artifacts.
 
 ### How to Add/Modify Artery Coordinates
 1. Open [`frontend/src/config/arteries.ts`](./frontend/src/config/arteries.ts).

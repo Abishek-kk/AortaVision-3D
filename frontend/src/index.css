@@ -490,6 +490,276 @@ a {
   opacity: 0.5;
 }
 
+.print-only,
+.print-heart-snapshot {
+  display: none;
+}
+
+.contribution-track {
+  position: relative;
+  width: 5.5rem;
+  height: 0.65rem;
+  flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(148, 163, 184, 0.25);
+}
+
+.contribution-zero {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: rgba(226, 232, 240, 0.8);
+}
+
+.contribution-bar {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.contribution-increases-risk,
+.print-shap-bar-positive {
+  background: #ff2e7e;
+}
+
+.contribution-decreases-risk,
+.print-shap-bar-negative {
+  background: #38bdf8;
+}
+
+@media print {
+  @page {
+    margin: 12mm;
+  }
+
+  html,
+  body,
+  #root {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  body,
+  body * {
+    color: #111827 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  .page-dark,
+  .page-light,
+  main,
+  .analysis-dashboard {
+    background: #fff !important;
+    color: #111827 !important;
+  }
+
+  .analysis-dashboard {
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+  }
+
+  .analysis-results-grid {
+    display: block !important;
+  }
+
+  .analysis-results-grid > section,
+  .analysis-dashboard > .glow-card {
+    margin: 0 0 10pt !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .glow-card {
+    overflow: visible !important;
+    border: 1px solid #94a3b8 !important;
+    border-radius: 8px !important;
+    background: #fff !important;
+  }
+
+  .glow-card__header {
+    background: #e2e8f0 !important;
+    color: #111827 !important;
+  }
+
+  .print-hide,
+  button,
+  .disclaimer-modal {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-disclaimer-banner {
+    display: flex !important;
+    border-bottom: 1px solid #d6a700;
+    background: #fef3c7 !important;
+    color: #111827 !important;
+  }
+
+  .print-patient-summary {
+    margin: 0 0 10pt;
+    border: 1px solid #94a3b8;
+    border-radius: 8px;
+    padding: 10pt;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-patient-summary h2,
+  .print-shap-target h3 {
+    margin: 0 0 5pt;
+    font-weight: 800;
+  }
+
+  .print-patient-summary p,
+  .print-patient-summary li {
+    margin: 3pt 0;
+  }
+
+  .print-patient-summary ul {
+    display: flex;
+    gap: 16pt;
+    margin: 4pt 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .heart-viewer {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    border-color: #94a3b8 !important;
+    background: #fff !important;
+  }
+
+  .heart-live-canvas {
+    display: none !important;
+  }
+
+  .print-heart-snapshot {
+    display: block !important;
+    width: 100% !important;
+    max-height: 3in;
+    object-fit: contain;
+  }
+
+  .interactive-shap-chart {
+    display: none !important;
+  }
+
+  .print-shap-reports {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10pt;
+    padding: 10pt;
+  }
+
+  .print-shap-target {
+    min-width: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-shap-rows {
+    display: grid;
+    gap: 3pt;
+  }
+
+  .print-shap-row {
+    display: grid;
+    grid-template-columns: minmax(65px, 1fr) minmax(70px, 1.5fr) 42px;
+    align-items: center;
+    gap: 5pt;
+    font-size: 8pt;
+  }
+
+  .print-shap-track {
+    position: relative;
+    height: 8px;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #e2e8f0 !important;
+  }
+
+  .print-shap-zero {
+    position: absolute;
+    z-index: 1;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: #475569 !important;
+  }
+
+  .print-shap-bar {
+    position: absolute;
+    top: 1px;
+    bottom: 1px;
+  }
+
+  .print-shap-bar-positive {
+    left: 50%;
+  }
+
+  .print-shap-bar-negative {
+    right: 50%;
+  }
+
+  .physiological-table,
+  .analysis-dashboard table {
+    min-width: 0 !important;
+    width: 100% !important;
+    font-size: 8pt !important;
+  }
+
+  .physiological-table th,
+  .physiological-table td,
+  .analysis-dashboard table th,
+  .analysis-dashboard table td {
+    padding: 4pt 3pt !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .physiological-table tr,
+  .analysis-dashboard table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .analysis-dashboard .overflow-x-auto {
+    overflow: visible !important;
+  }
+
+  .contribution-track {
+    background: #e2e8f0 !important;
+  }
+
+  .print-full-disclaimer {
+    margin-top: 10pt;
+    border: 1px solid #d6a700;
+    border-radius: 8px;
+    background: #fef3c7 !important;
+    padding: 9pt;
+    font-size: 9pt;
+    line-height: 1.4;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

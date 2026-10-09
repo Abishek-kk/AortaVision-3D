@@ -1,0 +1,22 @@
+// General adult reference ranges for context only; they are not diagnostic.
+export const REFERENCE_RANGES = [
+  { key: "Age", label: "Age", unit: "years", low: 18, high: 120 },
+  { key: "BMI", label: "Body mass index", unit: "kg/m²", low: 18.5, high: 24.9 },
+  { key: "BP", label: "Blood pressure", unit: "mmHg", low: 90, high: 120 },
+  { key: "PR", label: "Pulse rate", unit: "bpm", low: 60, high: 100 },
+  { key: "FBS", label: "Fasting blood sugar", unit: "mg/dL", low: 70, high: 99 },
+  { key: "CR", label: "Creatinine", unit: "mg/dL", low: 0.6, high: 1.3 },
+  { key: "TG", label: "Triglycerides", unit: "mg/dL", low: 0, high: 150 },
+  { key: "LDL", label: "LDL cholesterol", unit: "mg/dL", low: 0, high: 100 },
+  { key: "HDL", label: "HDL cholesterol", unit: "mg/dL", low: 40, high: 60 },
+  { key: "BUN", label: "Blood urea nitrogen", unit: "mg/dL", low: 7, high: 20 },
+  { key: "ESR", label: "Erythrocyte sedimentation rate", unit: "mm/h", low: 0, high: 20 },
+  { key: "HB", label: "Hemoglobin", unit: "g/dL", low: 12, high: 17.5 },
+  { key: "K", label: "Potassium", unit: "mmol/L", low: 3.5, high: 5 },
+  { key: "Na", label: "Sodium", unit: "mmol/L", low: 135, high: 145 },
+  { key: "WBC", label: "White blood cells", unit: "cells/µL", low: 4000, high: 11000 },
+  { key: "Lymph", label: "Lymphocytes", unit: "%", low: 20, high: 40 },
+  { key: "Neut", label: "Neutrophils", unit: "%", low: 40, high: 70 },
+  { key: "PLT", label: "Platelets", unit: "10³/µL", low: 150, high: 400 },
+  { key: "EF-TTE", label: "Ejection fraction (TTE)", unit: "%", low: 50, high: 70 },
+];

@@ -14,7 +14,7 @@ export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="relative z-20 bg-white text-navy shadow-sm">
+    <header className="relative z-20 bg-white text-navy shadow-sm print-hide">
       <nav
         aria-label="Main navigation"
         className="mx-auto flex min-h-[76px] max-w-screen-2xl items-center justify-between gap-4 px-5 py-3 sm:px-8"
