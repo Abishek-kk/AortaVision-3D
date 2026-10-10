@@ -99,6 +99,12 @@ npm run dev
 ```
 Open **http://localhost:5173**.
 
+### Deploy the frontend to Netlify
+
+Connect the repository to Netlify and deploy using the included `netlify.toml`. It sets the frontend directory as the build base, runs `npm run build`, publishes `dist`, and routes client-side URLs back to the app. If you entered build settings manually, use `frontend` as the base directory, `npm run build` as the build command, and `dist` as the publish directory.
+
+Netlify hosts the static frontend, not the FastAPI prediction backend. To enable predictions, deploy the backend separately, set Netlify's `VITE_API_URL` environment variable to that backend's public URL, and set the backend's `FRONTEND_ORIGIN` variable to your Netlify site URL. Redeploy after changing `VITE_API_URL`.
+
 ### 3. Tests and production build (optional)
 ```bash
 pip install pytest httpx
