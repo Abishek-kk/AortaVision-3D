@@ -75,9 +75,9 @@ const technologies = [
 ];
 
 const teamMembers = [
-  { name: "Member 1", role: "Frontend & UI", initials: "M1", color: "about-avatar-blue" },
-  { name: "Member 2", role: "Backend & ML", initials: "M2", color: "about-avatar-purple" },
-  { name: "Member 3", role: "3D Visualization & Documentation", initials: "M3", color: "about-avatar-red" },
+  { name: "GAURIKA", role: "Frontend & UI", initials: "GK", color: "about-avatar-blue" },
+  { name: "GAURI", role: "Backend & ML", initials: "G", color: "about-avatar-purple" },
+  { name: "ABISHEK", role: "3D Visualization & Documentation", initials: "A", color: "about-avatar-red" },
 ];
 
 function Reveal({ children, className = "" }) {
