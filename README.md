@@ -44,8 +44,7 @@ Predict **overall CAD** and **LAD / LCX / RCA stenosis** from routine clinical d
 12. [Reproducing the results](https://claude.ai/chat/45c7aba8-a5dd-453c-97d5-e09ec310240c#reproducing-the-results)
 13. [Extending the system](https://claude.ai/chat/45c7aba8-a5dd-453c-97d5-e09ec310240c#extending-the-system)
 14. [Limitations](https://claude.ai/chat/45c7aba8-a5dd-453c-97d5-e09ec310240c#limitations)
-15. [Team](https://claude.ai/chat/45c7aba8-a5dd-453c-97d5-e09ec310240c#team)
-16. [Credits and licence](https://claude.ai/chat/45c7aba8-a5dd-453c-97d5-e09ec310240c#credits-and-licence)
+15. [Credits and licence](https://claude.ai/chat/45c7aba8-a5dd-453c-97d5-e09ec310240c#credits-and-licence)
 
 ---
 
@@ -612,34 +611,13 @@ Drop a `.glb` into `frontend/public/models/` and adjust the artery anchor positi
 
 ---
 
-## Team
-
-Name
-Role
-
-`<Full Name>`
-`<role>`
-
-`<Full Name>`
-`<role>`
-
-`<Full Name>`
-`<role>`
-
-`<Full Name>`
-`<role>`
-
----
 
 ## Credits and licence
 
 **Data:** Z-Alizadeh Sani coronary artery disease dataset, UCI Machine Learning Repository.
 
-**3D heart mesh:** `<name, author, source link and licence of heart.glb>`
-
 **Libraries:** XGBoost, scikit-learn, imbalanced-learn, SHAP, pandas, NumPy, FastAPI, Pydantic, Uvicorn, React, Vite, Tailwind CSS, Three.js, React Three Fiber, drei, Recharts, Papa Parse, Lucide.
 
-**Licence:** `<MIT or similar>`. Add the full licence text to the `LICENSE` file.
 
 ---
 
