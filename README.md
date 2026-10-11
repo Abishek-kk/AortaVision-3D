@@ -42,17 +42,25 @@ An interactive web app that predicts **coronary artery disease (CAD)** and **ste
 
 ## Architecture
 
-```
- Patient data (form / sample / CSV / JSON)
-                │
-                ▼
-   React 18 + Vite frontend ──────────────┐
-   (R3F 3D heart, SHAP, tables)           │ POST /predict
-                ▲                         ▼
-                │              FastAPI backend (port 8000)
-   probabilities + SHAP       ├─ preprocessing pipeline (joblib)
-                └──────────── ├─ 4 XGBoost models (CAD, LAD, LCX, RCA)
-                              └─ SHAP TreeExplainer
+[![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/abishek-kk/aortavision-3d?utm_source=readme&utm_medium=badge)
+
+```mermaid
+flowchart LR
+    patient["Patient data<br/>Form · sample · CSV · JSON"]
+    frontend["React 18 + Vite frontend<br/>3D heart · dashboard · SHAP"]
+    api["FastAPI backend<br/>port 8000"]
+    preprocess["Preprocessing pipeline<br/>joblib"]
+    models["4 XGBoost models<br/>CAD · LAD · LCX · RCA"]
+    shap["SHAP TreeExplainer"]
+    result["Probabilities + SHAP"]
+
+    patient --> frontend
+    frontend -->|"POST /predict"| api
+    api --> preprocess --> models
+    models --> shap
+    models --> result
+    shap --> result
+    result --> frontend
 ```
 
 ```
