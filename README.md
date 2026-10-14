@@ -15,7 +15,7 @@ Predict **overall CAD** and **LAD / LCX / RCA stenosis** from routine clinical d
 
 [![Architecture diagram](https://gitdiagram.com/diagram-badge.svg)](https://gitdiagram.com/abishek-kk/aortavision-3d?utm_source=readme&utm_medium=badge)
 
-**Demo video:** `<YOUTUBE_LINK>`
+**Demo video:** (https://youtu.be/zUAk5TRVFlQ?si=M0ZGNZl4SRX6ZwHT)
 
 </div>
 
